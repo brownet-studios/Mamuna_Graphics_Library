@@ -4,7 +4,7 @@ project(example LANGUAGES C)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
-add_subdirectory(../Mamuna Mamuna)
+add_subdirectory(../ Mamuna)
 
 add_executable(example main.c)
 target_link_libraries(example PRIVATE Mamuna)
