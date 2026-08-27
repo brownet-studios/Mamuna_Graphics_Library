@@ -47,7 +47,7 @@ void* Mamuna_HashmapDestroy(Mamuna_Hashmap* hashmap, size_t* count){
 		Mamuna_Node* tmp = &hashmap->nodes[i];
 		if(tmp->flag != USED) continue;
 		free(tmp->id);
-		printf("%zu\n", i);
+
 	}
 
 	free(hashmap->nodes);
