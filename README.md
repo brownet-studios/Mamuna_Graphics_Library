@@ -1,4 +1,4 @@
-SOGL is licensed under the MIT License.
+Mamuna_Graphics_Library is licensed under the MIT License.
 See [LICENSE](LICENSE) for details.
 
 # Mamuna_Graphics_Library
