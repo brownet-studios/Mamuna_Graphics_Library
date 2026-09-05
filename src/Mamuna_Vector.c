@@ -127,3 +127,7 @@ void* Mamuna_VectorFront(Mamuna_Vector* vector){
 void* Mamuna_VectorBack(Mamuna_Vector* vector){
 	return vector->data + ((vector->count - 1) * vector->bytesPerElement);
 }
+
+size_t Mamuna_VectorGetCount(Mamuna_Vector* vector){
+	return vector->count;
+}

@@ -209,3 +209,7 @@ void* Mamuna_HashmapGetElement(Mamuna_Hashmap* hashmap, const char* id){
 
 	return tmp->ptr;
 }
+
+size_t Mamuna_HashmapGetCount(Mamuna_Hashmap* hashmap){
+	return hashmap->count;
+}
