@@ -303,6 +303,8 @@ void Mamuna_HashmapAddElement(Mamuna_Hashmap* hashmap, const char* id, void* ele
 void* Mamuna_HashmapRemoveElement(Mamuna_Hashmap* hashmap, const char* id);
 //This returns your element with specified id
 void* Mamuna_HashmapGetElement(Mamuna_Hashmap* hashmap, const char* id);
+//This returns count of elements in hashmap
+size_t Mamuna_HashmapGetCount(Mamuna_Hashmap* hashmap);
 
 //This creates vector; countToIncrease by how much should it increase
 Mamuna_Vector* Mamuna_VectorCreate(size_t bytesPerElement, size_t countToIncrease);
@@ -322,4 +324,6 @@ void* Mamuna_VectorPopFront(Mamuna_Vector* vector);
 void* Mamuna_VectorFront(Mamuna_Vector* vector);
 //This return pointer to back of array
 void* Mamuna_VectorBack(Mamuna_Vector* vector);
+//This returns count of elements in vector
+size_t Mamuna_VectorGetElement(Mamuna_Vector* vector);
 #endif
