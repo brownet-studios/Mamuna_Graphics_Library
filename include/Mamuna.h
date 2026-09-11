@@ -325,5 +325,5 @@ void* Mamuna_VectorFront(Mamuna_Vector* vector);
 //This return pointer to back of array
 void* Mamuna_VectorBack(Mamuna_Vector* vector);
 //This returns count of elements in vector
-size_t Mamuna_VectorGetElement(Mamuna_Vector* vector);
+size_t Mamuna_VectorGetCount(Mamuna_Vector* vector);
 #endif
