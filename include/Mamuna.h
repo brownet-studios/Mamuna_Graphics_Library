@@ -149,6 +149,11 @@ typedef enum Mamuna_Button {
 	MAMUNA_BUTTON_8 = (1 << 7),
 } Mamuna_Button;
 
+typedef enum MAMUNA_BUFFER_TYPE{
+	MAMUNA_UBO_BUFFER,
+	MAMUNA_SSBO_BUFFER,
+}MAMUNA_BUFFER_TYPE;
+
 typedef struct Mamuna_Window Mamuna_Window;
 
 typedef struct Mamuna_Renderer Mamuna_Renderer;
@@ -201,6 +206,8 @@ Mamuna_Button Mamuna_GetMouseState(Mamuna_Window* window, double* x, double* y,
 		double* xoffset, double* yoffset); //This returns a map of the mouse buttons and their positions relative to the window,
 						   //as well as input from the mouse wheel
 
+void Mamuna_EnableDebugOutput(Mamuna_Renderer* renderer);
+void Mamuna_DisableDebugOutput(Mamuna_Renderer* renderer);
 Mamuna_Renderer* Mamuna_CreateRenderer(Mamuna_Window* window); //Create a renderer opengl
 void Mamuna_DestroyRenderer(Mamuna_Renderer* renderer); //Destroy a renderer
 
@@ -235,8 +242,9 @@ Mamuna_Shader* Mamuna_CreateShader(Mamuna_Renderer* renderer,
 		const char* vs, const char* fs); //This creates a shader consisting of a vertex shader and a fragment shader
 
 void Mamuna_DestroyShader(Mamuna_Shader* shader); //This destroys a shader
-//This creates an SSBO (Shader Storage Buffer Object) for your shader
-Mamuna_Buffer* Mamuna_BufferCreate(Mamuna_Renderer* renderer, Mamuna_Shader* shader, const char* nameBuffer, size_t bytesPerElement);
+//This creates an SSBO (Shader Storage Buffer Object) or UBO (Uniform Buffer Object) for your shader
+Mamuna_Buffer* Mamuna_BufferCreate(Mamuna_Renderer* renderer, Mamuna_Shader* shader, const char* nameBuffer,
+		size_t bytesPerElement, MAMUNA_BUFFER_TYPE type);
 //This connects your buffer to another shader, meaning one buffer can be used by multiple shaders
 void Mamuna_BufferAlignToOtherShader(Mamuna_Buffer* buffer, Mamuna_Shader* shader, const char* nameBuffer);
 //This destroys your buffer
