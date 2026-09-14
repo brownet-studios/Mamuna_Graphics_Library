@@ -40,12 +40,13 @@ typedef struct Mamuna_Buffer {
 	size_t capacity;
 	size_t count;
 	size_t bytesPerElement;
+	MAMUNA_BUFFER_TYPE type;
 } Mamuna_Buffer;
 
 typedef struct Mamuna_Shader {
 	GLuint shader;
-	Mamuna_Buffer** buffers;
-	size_t countBuffer;
+	Mamuna_Vector* ssbos;
+	Mamuna_Vector* ubos;
 } Mamuna_Shader;
 
 typedef struct Mamuna_Texture {
@@ -76,7 +77,27 @@ typedef struct Mamuna_Renderer {
 	GLsync fence;
 } Mamuna_Renderer;
 
+void GLAPIENTRY Mamuna_DebugCallback( GLenum source,
+                 GLenum type,
+                 GLuint id,
+                 GLenum severity,
+                 GLsizei length,
+                 const GLchar* message,
+                 const void* userParam ){
+  fprintf(stderr, "GL CALLBACK: %s type = 0x%x, severity = 0x%x, message = %s\n",
+           ( type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : "" ),
+            type, severity, message );
+}
 
+void Mamuna_EnableDebugOutput(Mamuna_Renderer* renderer){
+	if(!renderer) return;
+	glEnable(GL_DEBUG_OUTPUT);
+	glDebugMessageCallback(Mamuna_DebugCallback, 0);
+}
+void Mamuna_DisableDebugOutput(Mamuna_Renderer* renderer){
+	if(!renderer) return;
+	glDisable(GL_DEBUG_OUTPUT);
+}
 
 void Mamuna_InitBuffers(Mamuna_Renderer* renderer){
 	GLuint* p = &renderer->buffers.VBO;
@@ -282,6 +303,11 @@ void Mamuna_FlushRenderer(Mamuna_Renderer* renderer){
 
 	
 	glBindFramebuffer(GL_FRAMEBUFFER, renderer->FBO);
+	GLenum  status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	if(status != GL_FRAMEBUFFER_COMPLETE){
+		printf("Error with binding framebuffer\n");
+	}
+
 	glBindVertexArray(renderer->VAO);
 	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, renderer->buffers.IBO);
 	if(!renderer->currentShader){
@@ -289,10 +315,22 @@ void Mamuna_FlushRenderer(Mamuna_Renderer* renderer){
 	}
 	
 	glUseProgram(renderer->currentShader->shader);
-	if(renderer->currentShader->countBuffer != 0){
-		for(size_t i = 0; i < renderer->currentShader->countBuffer; ++i){
-			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, i,
-					renderer->currentShader->buffers[i]->buffer);
+	size_t count;
+	Mamuna_Buffer** buffers = Mamuna_VectorGetAll(renderer->currentShader->ssbos, &count);
+	for(size_t i = 0; i < count; ++i){
+		Mamuna_Buffer* tmp = buffers[i];
+		if(glIsBuffer(tmp->buffer)){
+			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, i, tmp->buffer);
+
+		}
+	}
+
+	buffers = Mamuna_VectorGetAll(renderer->currentShader->ubos, &count);
+	for(size_t i = 0; i < count; ++i){
+		Mamuna_Buffer* tmp = buffers[i];
+		if(glIsBuffer(tmp->buffer)){
+			glBindBufferBase(GL_UNIFORM_BUFFER, i, tmp->buffer);	
+
 		}
 	}
 
@@ -334,6 +372,11 @@ void Mamuna_SetRenderTargets(Mamuna_Renderer* renderer, size_t amount, Mamuna_Te
 	if(renderer->countMeshes != 0){
 		Mamuna_FlushRenderer(renderer);
 	}
+	GLint max;
+	glGetIntegerv(GL_MAX_COLOR_ATTACHMENTS, &max);
+	for(size_t i = 0; i < max; ++i){
+		glNamedFramebufferTexture(renderer->FBO, GL_COLOR_ATTACHMENT0 + i, 0, 0);
+	}
 	
 	if(amount == 0 || !textures){
 		glNamedFramebufferTexture(renderer->FBO, GL_COLOR_ATTACHMENT0, renderer->windowTexture, 0);
@@ -341,7 +384,6 @@ void Mamuna_SetRenderTargets(Mamuna_Renderer* renderer, size_t amount, Mamuna_Te
 		glfwGetFramebufferSize((GLFWwindow*)renderer->window, &w, &h);
 		renderer->currentW = w;
 		renderer->currentH = h;
-		glViewport(0,0,w,h);
 		GLenum drawBuffers[] = {GL_COLOR_ATTACHMENT0};
 		glNamedFramebufferDrawBuffers(renderer->FBO, 1, drawBuffers);
 		return;
@@ -350,12 +392,13 @@ void Mamuna_SetRenderTargets(Mamuna_Renderer* renderer, size_t amount, Mamuna_Te
 	GLenum drawBuffers[amount];
 	memset(drawBuffers, 0, amount * sizeof(GLenum));
 
-	for(size_t i = 0; i < amount && i < GL_MAX_COLOR_ATTACHMENTS; ++i){
+	for(size_t i = 0; i < amount && i < max; ++i){
 		Mamuna_Texture* tex = textures[i];
 		if(!tex) break;
 		if(i == 0){
 			renderer->currentW = tex->w;
 			renderer->currentH = tex->h;
+			
 		}
 		glNamedFramebufferTexture(renderer->FBO, GL_COLOR_ATTACHMENT0 + i, tex->texture, 0);
 		drawBuffers[i] = GL_COLOR_ATTACHMENT0 + i;
@@ -642,15 +685,18 @@ Mamuna_Shader* Mamuna_CreateShader(Mamuna_Renderer* renderer,
 
 	Mamuna_Shader* shader = calloc(1, sizeof(Mamuna_Shader));
 	shader->shader = program;
+	shader->ssbos = Mamuna_VectorCreate(sizeof(Mamuna_Buffer*), 5);
+	shader->ubos = Mamuna_VectorCreate(sizeof(Mamuna_Buffer*), 5);
+	
 
 	return shader;
 }
 
 void Mamuna_DestroyShader(Mamuna_Shader* shader){
 	if(!shader) return;
-	if(shader->buffers){
-		free(shader->buffers);
-	}
+	size_t count;
+	free(Mamuna_VectorDestroy(shader->ssbos, &count));
+	free(Mamuna_VectorDestroy(shader->ubos, &count));
 
 	glDeleteProgram(shader->shader);
 	free(shader);
@@ -658,53 +704,103 @@ void Mamuna_DestroyShader(Mamuna_Shader* shader){
 }
 
 Mamuna_Buffer* Mamuna_BufferCreate(Mamuna_Renderer* renderer, Mamuna_Shader* shader, const char* nameBuffer,
-		size_t bytesPerElement){
+		size_t bytesPerElement, MAMUNA_BUFFER_TYPE type){
 
 	if(!renderer || !shader) return NULL;
-	size_t index = glGetProgramResourceIndex(shader->shader, GL_SHADER_STORAGE_BLOCK, nameBuffer);
-	if(index == GL_INVALID_INDEX){
-		return NULL;
-	}
-	glShaderStorageBlockBinding(shader->shader, index, shader->countBuffer);
 
-	GLuint SSBO;
-	glCreateBuffers(1, &SSBO);
+	switch(type){
+		case MAMUNA_UBO_BUFFER:
+		{
+			size_t index = glGetProgramResourceIndex(shader->shader, GL_UNIFORM_BLOCK, nameBuffer);
+			if(index == GL_INVALID_INDEX){
+				return NULL;
+			}
+			glUniformBlockBinding(shader->shader, index, Mamuna_VectorGetCount(shader->ubos));
+
+			GLuint UBO;
+			glCreateBuffers(1, &UBO);
+
+			glNamedBufferStorage(UBO, bytesPerElement * 2, NULL, renderer->flags | GL_MAP_READ_BIT);
+			void* ptr = glMapNamedBufferRange(UBO, 0, bytesPerElement * 2, (renderer->flags | GL_MAP_READ_BIT) & ~GL_DYNAMIC_STORAGE_BIT);
+
+			Mamuna_Buffer* buffer = calloc(1, sizeof(Mamuna_Buffer));
+			buffer->ptr = ptr;
+			buffer->buffer = UBO;
+			buffer->capacity = 2;
+			buffer->bytesPerElement = bytesPerElement;
+			buffer->type = type;
+
+			Mamuna_VectorPushBack(shader->ubos, &buffer);
+
+			return buffer;
+
+		} break;
+
+		case MAMUNA_SSBO_BUFFER:
+		{
+			size_t index = glGetProgramResourceIndex(shader->shader, GL_SHADER_STORAGE_BLOCK, nameBuffer);
+			if(index == GL_INVALID_INDEX){
+				return NULL;
+			}
+			glShaderStorageBlockBinding(shader->shader, index, Mamuna_VectorGetCount(shader->ssbos));
+
+			GLuint SSBO;
+			glCreateBuffers(1, &SSBO);
 	
-	glNamedBufferStorage(SSBO, bytesPerElement * 10, NULL, renderer->flags | GL_MAP_READ_BIT);
-	void* ptr = glMapNamedBufferRange(SSBO, 0, bytesPerElement * 10, (renderer->flags | GL_MAP_READ_BIT) & ~GL_DYNAMIC_STORAGE_BIT);
+			glNamedBufferStorage(SSBO, bytesPerElement * 10, NULL, renderer->flags | GL_MAP_READ_BIT);
+			void* ptr = glMapNamedBufferRange(SSBO, 0, bytesPerElement * 10, (renderer->flags | GL_MAP_READ_BIT) & ~GL_DYNAMIC_STORAGE_BIT);
 
-	Mamuna_Buffer* buffer = calloc(1, sizeof(Mamuna_Buffer));
-	buffer->ptr = ptr;
-	buffer->buffer = SSBO;
-	buffer->capacity = 10;
-	buffer->bytesPerElement = bytesPerElement;
+			Mamuna_Buffer* buffer = calloc(1, sizeof(Mamuna_Buffer));
+			buffer->ptr = ptr;
+			buffer->buffer = SSBO;
+			buffer->capacity = 10;
+			buffer->bytesPerElement = bytesPerElement;
+			buffer->type = type;
 
-	if(!shader->buffers){
-		shader->buffers = malloc(sizeof(Mamuna_Buffer*) * (shader->countBuffer + 1));
-	} else {
-		shader->buffers = realloc(shader->buffers, sizeof(Mamuna_Buffer*) * (shader->countBuffer + 1));
+			Mamuna_VectorPushBack(shader->ssbos, &buffer);
+
+			return buffer;
+		} break;
+
+		default:
+			break;
 	}
 
-	shader->buffers[shader->countBuffer++] = buffer;
-
-	return buffer;
+	return NULL;
 }
 
 void Mamuna_BufferAlignToOtherShader(Mamuna_Buffer* buffer, Mamuna_Shader* shader, const char* nameBuffer){
 	if(!buffer || !shader) return;
-	size_t index = glGetProgramResourceIndex(shader->shader, GL_SHADER_STORAGE_BLOCK, nameBuffer);
-	if(index == GL_INVALID_INDEX){
-		return ;
-	}
-	glShaderStorageBlockBinding(shader->shader, index, shader->countBuffer);
-	shader->buffers = realloc(shader->buffers, sizeof(Mamuna_Buffer*) * (shader->countBuffer + 1));
-	shader->buffers[shader->countBuffer++] = buffer;
+	switch(buffer->type){
+		case MAMUNA_UBO_BUFFER:
+		{
+			size_t index = glGetProgramResourceIndex(shader->shader, GL_UNIFORM_BLOCK, nameBuffer);
+			if(index == GL_INVALID_INDEX){
+				return;
+			}
+			glUniformBlockBinding(shader->shader, index, Mamuna_VectorGetCount(shader->ubos));
 
+			Mamuna_VectorPushBack(shader->ubos, &buffer);
+		} break;
+		case MAMUNA_SSBO_BUFFER:
+		{
+			size_t index = glGetProgramResourceIndex(shader->shader, GL_SHADER_STORAGE_BLOCK, nameBuffer);
+			if(index == GL_INVALID_INDEX){
+				return;
+			}
+			glShaderStorageBlockBinding(shader->shader, index, Mamuna_VectorGetCount(shader->ssbos));
+			
+			Mamuna_VectorPushBack(shader->ssbos, &buffer);
+		} break;
+		default:
+			break;
+	}
 }
 
 void Mamuna_BufferDestroy(Mamuna_Buffer* buffer){
 	if(!buffer) return;
-	glUnmapBuffer(buffer->buffer);
+
+	glUnmapNamedBuffer(buffer->buffer);
 	glDeleteBuffers(1, &buffer->buffer);
 
 	free(buffer);
@@ -749,6 +845,8 @@ void Mamuna_BufferSetElement(Mamuna_Renderer* renderer, Mamuna_Buffer* buffer, s
 	index = index % buffer->capacity;
 	memcpy(buffer->ptr + (buffer->bytesPerElement * index),
 			element, buffer->bytesPerElement);
+
+
 }
 
 void* Mamuna_BufferGetElement(Mamuna_Buffer* buffer, size_t index){
@@ -757,8 +855,13 @@ void* Mamuna_BufferGetElement(Mamuna_Buffer* buffer, size_t index){
 
 void Mamuna_BufferClear(Mamuna_Renderer* renderer, Mamuna_Buffer* buffer){
 	if(!renderer || !buffer) return;
+	glUnmapNamedBuffer(buffer->buffer);
+	glDeleteBuffers(1, &buffer->buffer);
+	glCreateBuffers(1, &buffer->buffer);
 	glNamedBufferStorage(buffer->buffer, buffer->bytesPerElement * buffer->capacity,
 			NULL, renderer->flags | GL_MAP_READ_BIT);
+	buffer->ptr = glMapNamedBufferRange(buffer->buffer, 0, buffer->bytesPerElement * buffer->capacity, 
+			(renderer->flags | GL_MAP_READ_BIT) & ~GL_DYNAMIC_STORAGE_BIT);
 }
 
 Mamuna_Texture* Mamuna_CreateTexture(int w, int h, bool linear, int channels){
