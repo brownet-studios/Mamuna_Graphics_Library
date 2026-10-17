@@ -50,6 +50,7 @@ typedef struct Mamuna_Renderer {
 	DRAWCOMMAND* pIBO;
 	GLbitfield flags;
 	GLenum mode;
+
 	GLuint FBO;
 	GLuint windowTexture;
 	GLuint RB;
@@ -570,13 +571,18 @@ Mamuna_Renderer* Mamuna_CreateRenderer(Mamuna_Window* window){
 	int samples;
 	glGetIntegerv(GL_SAMPLES, &samples);
 
+	glCreateRenderbuffers(1, &renderer->RB);
+
+
 	if(samples != 0){
 		glEnable(GL_MULTISAMPLE);
 		glCreateTextures(GL_TEXTURE_2D_MULTISAMPLE, 1, &renderer->windowTexture);
 		glTextureStorage2DMultisample(renderer->windowTexture, samples, GL_RGBA8, w, h, GL_TRUE);
+		glNamedRenderbufferStorageMultisample(renderer->RB, samples, GL_DEPTH24_STENCIL8, w, h);
 	} else {
 		glCreateTextures(GL_TEXTURE_2D, 1, &renderer->windowTexture);
 		glTextureStorage2D(renderer->windowTexture, 1, GL_RGBA8, w, h);
+		glNamedRenderbufferStorage(renderer->RB, GL_DEPTH24_STENCIL8, w, h);
 	}
 
 
@@ -589,8 +595,7 @@ Mamuna_Renderer* Mamuna_CreateRenderer(Mamuna_Window* window){
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
 
-	glCreateRenderbuffers(1, &renderer->RB);
-	glNamedRenderbufferStorage(renderer->RB, GL_DEPTH24_STENCIL8, w, h);
+
 
 	glNamedFramebufferTexture(renderer->FBO, GL_COLOR_ATTACHMENT0, renderer->windowTexture, 0);
 	glNamedFramebufferRenderbuffer(renderer->FBO, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, renderer->RB);
@@ -654,9 +659,11 @@ void Mamuna_FlushRenderer(Mamuna_Renderer* renderer){
 			glBindTextureUnit(i, 0);
 		}
 	}
-
-	if(renderer->currentVAO)
+	GLenum type = GL_UNSIGNED_INT;
+	if(renderer->currentVAO){
 		glBindVertexArray(renderer->currentVAO->vao);
+		type = renderer->currentVAO->type;
+	}
 
 	if(renderer->currentShader){
 		glUseProgram(renderer->currentShader->shader);
@@ -674,6 +681,7 @@ void Mamuna_FlushRenderer(Mamuna_Renderer* renderer){
 				glBindBufferBase(GL_UNIFORM_BUFFER, i, tmp[i]->buffer);
 			}
 		}
+
 	}
 
 	if(renderer->texturesCount && renderer->currentTextures){
@@ -682,8 +690,11 @@ void Mamuna_FlushRenderer(Mamuna_Renderer* renderer){
 		}
 	}
 
+	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, renderer->IBO);
+
 	glViewport(0,0, renderer->currentW, renderer->currentH);
-	glMultiDrawElementsIndirect(renderer->mode, renderer->currentVAO->type, 0, renderer->countIBO, sizeof(DRAWCOMMAND));
+	glMultiDrawElementsIndirect(renderer->mode, type, 0, renderer->countIBO, sizeof(DRAWCOMMAND));
+
 
 	renderer->fence = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
 
@@ -859,6 +870,7 @@ Mamuna_Shader* Mamuna_CreateShader(Mamuna_Renderer* renderer, const char* format
 
 	Mamuna_Vector* vector = Mamuna_CreateVector(sizeof(GLuint), 3);
 	for(size_t i = 0; i < len; ++i){
+		if(format[i] == ' ') ++i;
 		if(format[i++] == '%') ++count;
 		if(i >= len) break;
 		switch(format[i]){
@@ -1045,14 +1057,14 @@ void Mamuna_DestroyBuffer(Mamuna_Buffer* buffer){
 }
 
 
-void Mamuna_BufferSetElement(Mamuna_Renderer* renderer, Mamuna_Buffer* buffer, size_t index, size_t count, void* element){
+bool Mamuna_BufferSetElement(Mamuna_Renderer* renderer, Mamuna_Buffer* buffer, size_t index, size_t count, void* element){
 	if(!renderer || !buffer || !glIsBuffer(buffer->buffer)) return;
 
 	Mamuna_SyncGPU(renderer);
 
 	size_t sum = index + count;
 	if(index > sum) return;
-
+	bool resize = false;
 	if(sum >= buffer->capacity){
 		GLuint newBuffer;
 		glCreateBuffers(1, &newBuffer);
@@ -1070,10 +1082,13 @@ void Mamuna_BufferSetElement(Mamuna_Renderer* renderer, Mamuna_Buffer* buffer, s
 		buffer->capacity = newCapacity;
 		buffer->buffer = newBuffer;
 		buffer->ptr = ptr;
+		resize = true;
 	}
-	if(!buffer->ptr) return;
+	if(!buffer->ptr) return false;
 
 	memcpy(buffer->ptr + (buffer->bytesPerElement * index), element, buffer->bytesPerElement * count);
+
+	return resize;
 }
 
 void Mamuna_BufferClearRange(Mamuna_Renderer* renderer, Mamuna_Buffer* buffer, size_t offset, size_t range){
