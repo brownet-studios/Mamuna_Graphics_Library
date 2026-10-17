@@ -841,6 +841,7 @@ void Mamuna_SetModeDraw(Mamuna_Renderer* renderer, MAMUNA_ENUM type, float point
 	Mamuna_FlushRenderer(renderer);
 	
 	renderer->mode = glType;
+	glPointSize(pointSize);
 }
 
 void Mamuna_DrawVertexes(Mamuna_Renderer* renderer, size_t countIndices, size_t instances, size_t firstIndex, size_t prevVertexes, size_t baseInstance){
