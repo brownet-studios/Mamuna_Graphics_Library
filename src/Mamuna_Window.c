@@ -112,9 +112,11 @@ void Mamuna_CharacterCallback(GLFWwindow* window, unsigned int codepoint){
 }
 
 void Mamuna_MouseButtonCallback(GLFWwindow* window, int button, int action, int mods){
-	buttons &= ~buttons;
+
 	if(action == GLFW_PRESS){
 		buttons |= (1 << button);
+	} else if(action == GLFW_RELEASE){
+		buttons &= ~(1 << button);
 	}
 }
 
