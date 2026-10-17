@@ -7,12 +7,79 @@ typedef struct Mamuna_Window {
 	GLFWwindow* base;
 } Mamuna_Window;
 
-bool* keys = NULL;
-Mamuna_Button buttons = 0;
-double xScroll = 0.0;
-double yScroll = 0.0;
-unsigned int character = 0;
-vec4 rect = {-1.f};
+static bool* keys = NULL;
+static Mamuna_Button buttons = 0;
+static double xScroll = 0.0;
+static double yScroll = 0.0;
+static unsigned int character = 0;
+static vec4 rect = {-1.f};
+
+
+int Mamuna_GetGLFWEnum(MAMUNA_ENUM hint){
+	switch(hint){
+		case MAMUNA_HINT_VISIBLE:
+			return GLFW_VISIBLE;
+		case MAMUNA_HINT_DECORATED:
+			return GLFW_DECORATED;
+		case MAMUNA_HINT_AUTO_ICONIFY:
+			return GLFW_AUTO_ICONIFY;
+		case MAMUNA_HINT_FLOATING:
+			return GLFW_FLOATING;
+		case MAMUNA_HINT_MAXIMIZED:
+			return GLFW_MAXIMIZED;
+		case MAMUNA_HINT_CENTER_CURSOR:
+			return GLFW_CENTER_CURSOR;
+		case MAMUNA_HINT_TRANSPARENT_FRAMEBUFFER:
+			return GLFW_TRANSPARENT_FRAMEBUFFER;
+		case MAMUNA_HINT_FOCUS_ON_SHOW:
+			return GLFW_FOCUS_ON_SHOW;
+		case MAMUNA_HINT_SCALE_TO_MONITOR:
+			return GLFW_SCALE_TO_MONITOR;
+		case MAMUNA_HINT_RED_BITS:
+			return GLFW_RED_BITS;
+		case MAMUNA_HINT_GREEN_BITS:
+			return GLFW_GREEN_BITS;
+		case MAMUNA_HINT_BLUE_BITS:
+			return GLFW_BLUE_BITS;
+		case MAMUNA_HINT_ALPHA_BITS:
+			return GLFW_ALPHA_BITS;
+		case MAMUNA_HINT_DEPTH_BITS:
+			return GLFW_DEPTH_BITS;
+		case MAMUNA_HINT_STENCIL_BITS:
+			return GLFW_STENCIL_BITS;
+		case MAMUNA_HINT_ACCUM_RED_BITS:
+			return GLFW_ACCUM_RED_BITS;
+		case MAMUNA_HINT_ACCUM_GREEN_BITS:
+			return GLFW_ACCUM_GREEN_BITS;
+		case MAMUNA_HINT_ACCUM_BLUE_BITS:
+			return GLFW_ACCUM_BLUE_BITS;
+		case MAMUNA_HINT_ACCUM_ALPHA_BITS:
+			return GLFW_ACCUM_ALPHA_BITS;
+		case MAMUNA_HINT_AUX_BUFFERS:
+			return GLFW_AUX_BUFFERS;
+		case MAMUNA_HINT_SAMPLES:
+			return GLFW_SAMPLES;
+		case MAMUNA_HINT_REFRESH_RATE:
+			return GLFW_REFRESH_RATE;
+		case MAMUNA_HINT_STEREO:
+			return GLFW_STEREO;
+		case MAMUNA_HINT_SRGB_CAPABLE:
+			return GLFW_SRGB_CAPABLE;
+		case MAMUNA_HINT_OPENGL_PROFILE:
+			return GLFW_OPENGL_PROFILE;
+		case MAMUNA_ANY_POSITION:
+			return GLFW_ANY_POSITION;
+		case MAMUNA_DONT_CARE:
+			return GLFW_DONT_CARE;
+		case MAMUNA_OPENGL_ANY_PROFILE:
+			return GLFW_OPENGL_ANY_PROFILE;
+		case MAMUNA_OPENGL_COMPAT_PROFILE:
+			return GLFW_OPENGL_COMPAT_PROFILE;
+		case MAMUNA_OPENGL_CORE_PROFILE:
+			return GLFW_OPENGL_CORE_PROFILE;
+	}
+	return 10000;
+}
 
 bool Mamuna_Init(){
 	keys = calloc(MAMUNA_KEY_LAST + 1, sizeof(bool));
@@ -77,16 +144,65 @@ void Mamuna_MouseCursorPosCallback(GLFWwindow* window, double xpos, double ypos)
 	}
 }
 
-Mamuna_Window* Mamuna_CreateWindow(int width, int height, const char* title, bool fullscreen, const char* version, bool profileCore){
+void Mamuna_SetWindowCreationHint(MAMUNA_ENUM pname, int value){
+	int gPname = Mamuna_GetGLFWEnum(pname);	
+	int gValue = Mamuna_GetGLFWEnum(value);
+
+	switch(gPname){
+		case GLFW_VISIBLE:
+		case GLFW_DECORATED:
+		case GLFW_FOCUSED:
+		case GLFW_AUTO_ICONIFY:
+		case GLFW_FLOATING:
+		case GLFW_MAXIMIZED:
+		case GLFW_CENTER_CURSOR:
+		case GLFW_TRANSPARENT_FRAMEBUFFER:
+		case GLFW_FOCUS_ON_SHOW:
+		case GLFW_SCALE_TO_MONITOR:
+		case GLFW_SCALE_FRAMEBUFFER:
+		case GLFW_MOUSE_PASSTHROUGH:
+		case GLFW_STEREO:
+		case GLFW_SRGB_CAPABLE:
+			glfwWindowHint(gPname, value ? GLFW_TRUE : GLFW_FALSE);
+			break;
+		case GLFW_POSITION_X:
+		case GLFW_POSITION_Y:
+			glfwWindowHint(gPname, gValue == GLFW_ANY_POSITION ? gValue : value);
+			break;
+		case GLFW_RED_BITS:
+		case GLFW_GREEN_BITS:
+		case GLFW_BLUE_BITS:
+		case GLFW_ALPHA_BITS:
+		case GLFW_DEPTH_BITS:
+		case GLFW_STENCIL_BITS:
+		case GLFW_ACCUM_RED_BITS:
+		case GLFW_ACCUM_GREEN_BITS:
+		case GLFW_ACCUM_BLUE_BITS:
+		case GLFW_ACCUM_ALPHA_BITS:
+		case GLFW_AUX_BUFFERS:
+		case GLFW_SAMPLES:
+		case GLFW_REFRESH_RATE:
+			glfwWindowHint(gPname, gValue == GLFW_DONT_CARE ? gValue : value);
+			break;
+		case GLFW_OPENGL_PROFILE:
+			glfwWindowHint(gPname, gValue);
+			break;
+		default:
+			break;
+
+	}
+}
+
+Mamuna_Window* Mamuna_CreateWindow(int width, int height, const char* title, bool fullscreen){
 
 	GLFWmonitor* monitor = NULL;
 	if(fullscreen){
 		monitor = glfwGetPrimaryMonitor();
 	}
 
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, version[0] - 48);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, version[1] - 48);
-	glfwWindowHint(GLFW_OPENGL_PROFILE, profileCore ? GLFW_OPENGL_CORE_PROFILE : GLFW_OPENGL_COMPAT_PROFILE);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
+
 
 	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 

@@ -20,7 +20,7 @@ typedef struct Mamuna_Font {
 	int sizeFont;
 } Mamuna_Font;
 
-char* Mamuna_LoadTextFile(const char* path){
+char* Mamuna_LoadFile(const char* path, size_t* bytes){
 	if(!path && (path[0] == EOF || path[0] == '\0')){
 		return NULL;
 	}
@@ -40,6 +40,8 @@ char* Mamuna_LoadTextFile(const char* path){
 	
 	rewind(file);
 	fread(buff, sizeof(char), len, file);
+	if(bytes)
+		*bytes = len;
 
 	fclose(file);
 
@@ -58,8 +60,19 @@ Mamuna_Image* Mamuna_CreateImage(unsigned char* pixels, int w, int h, int channe
 	return image;
 }
 
+Mamuna_Image* Mamuna_LoadImageFromMem(const unsigned char* buffer, size_t bytes){
+	if(!buffer) return NULL;
+	Mamuna_Image* image = malloc(sizeof(Mamuna_Image));
+
+	image->pixels = stbi_load_from_memory(buffer, bytes, &image->w, &image->h,
+			&image->channels, 0);
+
+	return image;
+	
+}
 
 Mamuna_Image* Mamuna_LoadImage(const char* path){
+	if(!path) return NULL;
 	Mamuna_Image* image = malloc(sizeof(Mamuna_Image));
 	image->pixels = stbi_load(path, &image->w, &image->h, &image->channels, 0);
 
@@ -127,6 +140,7 @@ Mamuna_Font* Mamuna_LoadFont(const char* path, int pixelHeight, size_t countChar
 }
 
 void Mamuna_DestroyFont(Mamuna_Font* font){
+	if(!font) return;
 	free(font->image->pixels);
 	free(font->image);
 	free(font->charData);
@@ -149,26 +163,34 @@ void Mamuna_FontGetUVsChar(Mamuna_Font* font, char32_t c, float* cursorX, float 
 
 	pos[0] = *cursorX + (sizeFont * glyph->xoff);
 	pos[1] = baselineY + (sizeFont * glyph->yoff);
-	pos[2] = *cursorX + (sizeFont * glyph->xoff2);
-	pos[3] = baselineY + (sizeFont * glyph->yoff2);
+	pos[2] = *cursorX + (sizeFont * glyph->xoff2) - pos[0];
+	pos[3] = baselineY + (sizeFont * glyph->yoff2) - pos[1];
 
 	*cursorX += (glyph->xadvance * sizeFont);
 }
 
-float Mamuna_FontGetSizeXChar(Mamuna_Font* font, char32_t c){
+float Mamuna_FontGetSizeXChar(Mamuna_Font* font, char32_t c, float sizeFont){
 	if(!font || c < 32) return 0.f;
-	return font->charData[c - 32].xadvance; 
+	return font->charData[c - 32].xadvance * sizeFont; 
+}
+
+int Mamuna_FontGetSizeYFont(Mamuna_Font* font, float sizeFont){
+	if(!font) return 0;
+	return font->sizeFont * sizeFont;
 }
 
 void Mamuna_GetImageSize(Mamuna_Image* image, int* w, int* h){
+	if(!image) return;
 	*w = image->w;
 	*h = image->h;
 }
 
 int Mamuna_GetImageChannels(Mamuna_Image* image){
+	if(!image) return 0;
 	return image->channels;
 }
 
 unsigned char* Mamuna_GetImagePixels(Mamuna_Image* image){
+	if(!image) return NULL;
 	return image->pixels;
 }
