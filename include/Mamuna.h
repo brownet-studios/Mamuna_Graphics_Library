@@ -125,18 +125,16 @@
 #define MAMUNA_KEY_MENU 348
 #define MAMUNA_KEY_LAST MAMUNA_KEY_MENU
 
+
 #include <cglm/cglm.h>
 
 #include <stdbool.h>
+#include <stdarg.h>
 #include <stdint.h>
 #include <uchar.h>
 
 
-typedef enum MAMUNA_TYPE_DRAW {
-	MAMUNA_POINT,
-	MAMUNA_LINE,
-	MAMUNA_TRIANGLES,
-} MAMUNA_TYPE_DRAW;
+
 
 typedef enum Mamuna_Button {
 	MAMUNA_LEFT_BUTTON = (1 << 0),
@@ -149,14 +147,272 @@ typedef enum Mamuna_Button {
 	MAMUNA_BUTTON_8 = (1 << 7),
 } Mamuna_Button;
 
-typedef enum MAMUNA_BUFFER_TYPE{
-	MAMUNA_UBO_BUFFER,
-	MAMUNA_SSBO_BUFFER,
-}MAMUNA_BUFFER_TYPE;
+typedef enum MAMUNA_ENUM {
+	MAMUNA_FORMAT_TEXTURE_DEPTH_COMP32F,
+	MAMUNA_FORMAT_TEXTURE_DEPTH_COMP24,
+	MAMUNA_FORMAT_TEXTURE_DEPTH_COMP16,
+	MAMUNA_FORMAT_TEXTURE_DEPTH32F_STENCIL8,
+	MAMUNA_FORMAT_TEXTURE_DEPTH24_STENCIL8,
+	MAMUNA_FORMAT_TEXTURE_STENCIL_INDEX8,
+
+	MAMUNA_FORMAT_TEXTURE_R8,
+	MAMUNA_FORMAT_TEXTURE_R8_SNORM,
+	MAMUNA_FORMAT_TEXTURE_R16,
+	MAMUNA_FORMAT_TEXTURE_R16_SNORM,
+	MAMUNA_FORMAT_TEXTURE_RG8,
+	MAMUNA_FORMAT_TEXTURE_RG8_SNORM,
+	MAMUNA_FORMAT_TEXTURE_RG16,
+	MAMUNA_FORMAT_TEXTURE_RG16_SNORM,
+	MAMUNA_FORMAT_TEXTURE_R3_G3_B2,
+	MAMUNA_FORMAT_TEXTURE_RGB4,
+	MAMUNA_FORMAT_TEXTURE_RGB5,
+	MAMUNA_FORMAT_TEXTURE_RGB8,
+	MAMUNA_FORMAT_TEXTURE_RGB8_SNORM,
+	MAMUNA_FORMAT_TEXTURE_RGB10,
+	MAMUNA_FORMAT_TEXTURE_RGB12,
+	MAMUNA_FORMAT_TEXTURE_RGB16_SNORM,
+	MAMUNA_FORMAT_TEXTURE_RGBA2,
+	MAMUNA_FORMAT_TEXTURE_RGBA4,
+	MAMUNA_FORMAT_TEXTURE_RGB5_A1,
+	MAMUNA_FORMAT_TEXTURE_RGBA8,
+	MAMUNA_FORMAT_TEXTURE_RGBA8_SNORM,
+	MAMUNA_FORMAT_TEXTURE_RGB10_A2,
+	MAMUNA_FORMAT_TEXTURE_RGB10_A2UI,
+	MAMUNA_FORMAT_TEXTURE_RGBA12,
+	MAMUNA_FORMAT_TEXTURE_RGBA16,
+	MAMUNA_FORMAT_TEXTURE_SRGB8,
+	MAMUNA_FORMAT_TEXTURE_SRGB8_ALPHA8,
+	MAMUNA_FORMAT_TEXTURE_R16F,
+	MAMUNA_FORMAT_TEXTURE_RG16F,
+	MAMUNA_FORMAT_TEXTURE_RGB16F,
+	MAMUNA_FORMAT_TEXTURE_RGBA16F,
+	MAMUNA_FORMAT_TEXTURE_R32F,
+	MAMUNA_FORMAT_TEXTURE_RG32F,
+	MAMUNA_FORMAT_TEXTURE_RGB32F,
+	MAMUNA_FORMAT_TEXTURE_RGBA32F,
+	MAMUNA_FORMAT_TEXTURE_R11F_G11F_B10F,
+	MAMUNA_FORMAT_TEXTURE_RGB9_E5,
+	MAMUNA_FORMAT_TEXTURE_R8I,
+	MAMUNA_FORMAT_TEXTURE_R8UI,
+	MAMUNA_FORMAT_TEXTURE_R16I,
+	MAMUNA_FORMAT_TEXTURE_R16UI,
+	MAMUNA_FORMAT_TEXTURE_R32I,
+	MAMUNA_FORMAT_TEXTURE_R32UI,
+	MAMUNA_FORMAT_TEXTURE_RG8I,
+	MAMUNA_FORMAT_TEXTURE_RG8UI,
+	MAMUNA_FORMAT_TEXTURE_RG16I,
+	MAMUNA_FORMAT_TEXTURE_RG16UI,
+	MAMUNA_FORMAT_TEXTURE_RG32I,
+	MAMUNA_FORMAT_TEXTURE_RG32UI,
+	MAMUNA_FORMAT_TEXTURE_RGB8I,
+	MAMUNA_FORMAT_TEXTURE_RGB8UI,
+	MAMUNA_FORMAT_TEXTURE_RGB16I,
+	MAMUNA_FORMAT_TEXTURE_RGB16UI,
+	MAMUNA_FORMAT_TEXTURE_RGB32I,
+	MAMUNA_FORMAT_TEXTURE_RGB32UI,
+	MAMUNA_FORMAT_TEXTURE_RGBA8I,
+	MAMUNA_FORMAT_TEXTURE_RGBA8UI,
+	MAMUNA_FORMAT_TEXTURE_RGBA16I,
+	MAMUNA_FORMAT_TEXTURE_RGBA16UI,
+	MAMUNA_FORMAT_TEXTURE_RGBA32I,
+	MAMUNA_FORMAT_TEXTURE_RGBA32UI,
+
+	MAMUNA_PARAM_TEXTURE_DEPTH_STENCIL_MODE,
+	MAMUNA_PARAM_TEXTURE_BASE_LEVEL,
+	MAMUNA_PARAM_TEXTURE_BORDER_COLOR,
+	MAMUNA_PARAM_TEXTURE_COMPARE_FUNC,
+	MAMUNA_PARAM_TEXTURE_COMPARE_MODE,
+	MAMUNA_PARAM_TEXTURE_LOD_BIAS,
+	MAMUNA_PARAM_TEXTURE_MIN_FILTER,
+	MAMUNA_PARAM_TEXTURE_MAG_FILTER,
+	MAMUNA_PARAM_TEXTURE_MIN_LOD,
+	MAMUNA_PARAM_TEXTURE_MAX_LOD,
+	MAMUNA_PARAM_TEXTURE_MAX_LEVEL,
+	MAMUNA_PARAM_TEXTURE_SWIZZLE_R,
+	MAMUNA_PARAM_TEXTURE_SWIZZLE_G,
+	MAMUNA_PARAM_TEXTURE_SWIZZLE_B,
+	MAMUNA_PARAM_TEXTURE_SWIZZLE_A,
+	MAMUNA_PARAM_TEXTURE_WRAP_S,
+	MAMUNA_PARAM_TEXTURE_WRAP_T,
+	MAMUNA_PARAM_TEXTURE_WRAP_R,
+
+	MAMUNA_FILTER_TEXTURE_NEAREST,
+	MAMUNA_FILTER_TEXTURE_LINEAR,
+	MAMUNA_FILTER_TEXTURE_MIPMAP_NEAREST_NEAREST,
+	MAMUNA_FILTER_TEXTURE_MIPMAP_NEAREST_LINEAR,
+	MAMUNA_FILTER_TEXTURE_MIPMAP_LINEAR_NEAREST,
+	MAMUNA_FILTER_TEXTURE_MIPMAP_LINEAR_LINEAR,
+
+	MAMUNA_WRAP_TEXTURE_CLAMP_TO_EDGE,
+	MAMUNA_WRAP_TEXTURE_CLAMP_TO_BORDER,
+	MAMUNA_WRAP_TEXTURE_MIRRORED_REPEAT,
+	MAMUNA_WRAP_TEXTURE_REPEAT,
+	MAMUNA_WRAP_TEXTURE_MIRROR_CLAMP_TO_EDGE,
+
+	MAMUNA_TEXTURE_1D,
+	MAMUNA_TEXTURE_2D,
+	MAMUNA_TEXTURE_3D,
+	MAMUNA_TEXTURE_1D_ARRAY,
+	MAMUNA_TEXTURE_2D_ARRAY,
+	MAMUNA_TEXTURE_2D_MULTISAMPLE,
+	MAMUNA_TEXTURE_2D_MULTISAMPLE_ARRAY,
+
+	MAMUNA_DEPTH_COMP,
+	MAMUNA_STENCIL_INDEX,
+
+	MAMUNA_TEXTURE_COMPARE_REF_TO_TEXTURE,
+
+	MAMUNA_LEQUAL,
+	MAMUNA_GEQUAL,
+	MAMUNA_LESS,
+	MAMUNA_GREATER,
+	MAMUNA_EQUAL,
+	MAMUNA_NOTEQUAL,
+	MAMUNA_ALWAYS,
+	MAMUNA_NEVER,
+
+	MAMUNA_BUFFER_UBO,
+	MAMUNA_BUFFER_SSBO,
+
+	MAMUNA_POLYGON_POINT,
+	MAMUNA_POLYGON_LINE,
+	MAMUNA_POLYGON_FILL,
+
+	MAMUNA_DRAW_POINTS,
+	MAMUNA_DRAW_LINES,
+	MAMUNA_DRAW_LINE_STRIP,
+	MAMUNA_DRAW_LINE_LOOP,
+	MAMUNA_DRAW_LINE_STRIP_ADJACENCY,
+	MAMUNA_DRAW_LINES_ADJACENCY,
+	MAMUNA_DRAW_TRIANGLE_STRIP,
+	MAMUNA_DRAW_TRIANGLE_FAN,
+	MAMUNA_DRAW_TRIANGLES,
+	MAMUNA_DRAW_TRIANGLE_STRIP_ADJACENCY,
+	MAMUNA_DRAW_TRIANGLES_ADJACENCY,
+	MAMUNA_DRAW_PATCHES,
+
+	MAMUNA_INVALID_ENUM,
+	MAMUNA_ZERO,
+	MAMUNA_RED,
+	MAMUNA_GREEN,
+	MAMUNA_BLUE,
+	MAMUNA_ALPHA,
+	MAMUNA_ONE,
+
+	MAMUNA_FLOAT,
+	MAMUNA_BYTE,
+	MAMUNA_SHORT,
+	MAMUNA_INT,
+	MAMUNA_FIXED,
+	MAMUNA_DOUBLE,
+	MAMUNA_UNSIGNED_BYTE,
+	MAMUNA_UNSIGNED_SHORT,
+	MAMUNA_UNSIGNED_INT,
+
+	MAMUNA_BLEND,
+	MAMUNA_COLOR_LOGIC_OP,
+	MAMUNA_CULL_FACE,
+	MAMUNA_DEPTH_CLAMP,
+	MAMUNA_DEPTH_TEST,
+	MAMUNA_DITHER,
+	MAMUNA_FRAMEBUFFER_SRGB,
+	MAMUNA_LINE_SMOOTH,
+	MAMUNA_POLYGON_OFFSET_FILL,
+	MAMUNA_POLYGON_OFFSET_LINE,
+	MAMUNA_POLYGON_OFFSET_POINT,
+	MAMUNA_POLYGON_SMOOTH,
+	MAMUNA_PRIMITIVE_RESTART,
+	MAMUNA_PRIMITIVE_RESTART_FIXED_INDEX,
+	MAMUNA_SCISSOR_TEST,
+	MAMUNA_STENCIL_TEST,
+	MAMUNA_PROGRAM_POINT_SIZE,
+
+	MAMUNA_SRC_COLOR,
+	MAMUNA_ONE_MINUS_SRC_COLOR,
+	MAMUNA_DST_COLOR,
+	MAMUNA_ONE_MINUS_DST_COLOR,
+	MAMUNA_SRC_ALPHA,
+	MAMUNA_ONE_MINUS_SRC_ALPHA,
+	MAMUNA_DST_ALPHA,
+	MAMUNA_ONE_MINUS_DST_ALPHA,
+	MAMUNA_CONSTANT_COLOR,
+	MAMUNA_ONE_MINUS_CONSTANT_COLOR,
+	MAMUNA_CONSTANT_ALPHA,
+	MAMUNA_ONE_MINUS_CONSTANT_ALPHA,
+	MAMUNA_SRC_ALPHA_SATURATE,
+	MAMUNA_SRC1_COLOR,
+	MAMUNA_ONE_MINUS_SRC1_COLOR,
+	MAMUNA_SRC1_ALPHA,
+
+	MAMUNA_CLEAR,
+	MAMUNA_SET,
+	MAMUNA_COPY,
+	MAMUNA_COPY_INVERTED,
+	MAMUNA_NOOP,
+	MAMUNA_INVERT,
+	MAMUNA_AND,
+	MAMUNA_NAND,
+	MAMUNA_OR,
+	MAMUNA_NOR, 
+	MAMUNA_XOR,
+	MAMUNA_EQUIV,
+	MAMUNA_AND_REVERSE,
+	MAMUNA_AND_INVERTED,
+	MAMUNA_OR_REVERSE,
+	MAMUNA_OR_INVERTED,
+
+	MAMUNA_FRONT,
+	MAMUNA_BACK,
+	MAMUNA_FRONT_AND_BACK,
+
+	MAMUNA_CW,
+	MAMUNA_CCW,
+
+	MAMUNA_KEEP,
+	MAMUNA_REPLACE,
+	MAMUNA_INCR,
+	MAMUNA_INCR_WRAP,
+	MAMUNA_DECR,
+	MAMUNA_DECR_WRAP,
+
+	MAMUNA_HINT_VISIBLE,
+	MAMUNA_HINT_DECORATED,
+	MAMUNA_HINT_AUTO_ICONIFY,
+	MAMUNA_HINT_FLOATING,
+	MAMUNA_HINT_MAXIMIZED,
+	MAMUNA_HINT_CENTER_CURSOR,
+	MAMUNA_HINT_TRANSPARENT_FRAMEBUFFER,
+	MAMUNA_HINT_FOCUS_ON_SHOW,
+	MAMUNA_HINT_SCALE_TO_MONITOR,
+	MAMUNA_HINT_RED_BITS,
+	MAMUNA_HINT_GREEN_BITS,
+	MAMUNA_HINT_BLUE_BITS,
+	MAMUNA_HINT_ALPHA_BITS,
+	MAMUNA_HINT_DEPTH_BITS,
+	MAMUNA_HINT_STENCIL_BITS,
+	MAMUNA_HINT_ACCUM_RED_BITS,
+	MAMUNA_HINT_ACCUM_GREEN_BITS,
+	MAMUNA_HINT_ACCUM_BLUE_BITS,
+	MAMUNA_HINT_ACCUM_ALPHA_BITS,
+	MAMUNA_HINT_AUX_BUFFERS,
+	MAMUNA_HINT_SAMPLES,
+	MAMUNA_HINT_REFRESH_RATE,
+	MAMUNA_HINT_STEREO,
+	MAMUNA_HINT_SRGB_CAPABLE,
+	MAMUNA_HINT_OPENGL_PROFILE,
+
+	MAMUNA_ANY_POSITION,
+	MAMUNA_DONT_CARE,
+	MAMUNA_OPENGL_ANY_PROFILE,
+	MAMUNA_OPENGL_COMPAT_PROFILE,
+	MAMUNA_OPENGL_CORE_PROFILE,
+} MAMUNA_ENUM;
 
 typedef struct Mamuna_Window Mamuna_Window;
 
 typedef struct Mamuna_Renderer Mamuna_Renderer;
+
+typedef struct Mamuna_VAO Mamuna_VAO;
 
 typedef struct Mamuna_Shader Mamuna_Shader;
 
@@ -172,18 +428,13 @@ typedef struct Mamuna_Hashmap Mamuna_Hashmap;
 
 typedef struct Mamuna_Vector Mamuna_Vector;
 
-typedef struct VERTEX {
-	vec3 pos;
-	vec3 normals;
-	vec2 uv;
-} VERTEX;
-
 bool Mamuna_Init(); //Library Initialization
 void Mamuna_Quit(); //Library Deinitialization
 
+void Mamuna_SetWindowCreationHint(MAMUNA_ENUM pname, int value);
 Mamuna_Window* Mamuna_CreateWindow(int width, int height, const char* title,
-		bool fullscreen, const char* version, bool profileCore); //Create a Window.
-									//version is an OpenGL version,
+		bool fullscreen); //Create a Window.
+									//version is an OpenGL version,	
 									//profileCore indicates whether we want to use the OpenGL core
 									//version or the compatibility version
 void Mamuna_DestroyWindow(Mamuna_Window* window); //Destroy a Window
@@ -223,6 +474,7 @@ void Mamuna_ClearRenderer(Mamuna_Renderer* renderer, uint8_t r,
 
 void Mamuna_RenderPresent(Mamuna_Renderer* renderer); //Update the screen with any rendering performed since the previous call.;
 						  //Therefore, it automatically uses a flush at the beginning
+void Mamuna_SetVAO(Mamuna_Renderer* renderer, Mamuna_VAO* vao);
 
 void Mamuna_SetTextures(Mamuna_Renderer* renderer, size_t amount, Mamuna_Texture** textures);//This sets the textures to be used;
 										      //if there are no textures,
@@ -230,47 +482,64 @@ void Mamuna_SetTextures(Mamuna_Renderer* renderer, size_t amount, Mamuna_Texture
 
 void Mamuna_SetShader(Mamuna_Renderer* renderer, Mamuna_Shader* shader); //This sets the shader that will handle the rendering;
 								   //Therefore, it automatically uses a flush at the beginning
-void Mamuna_SetModeDraw(Mamuna_Renderer* renderer, MAMUNA_TYPE_DRAW type, float size); //This sets mode draw, POINT, LINE, TRIANGLES;
+void Mamuna_SetModeDraw(Mamuna_Renderer* renderer, MAMUNA_ENUM type, float pointSize); //This sets mode draw, POINT, LINE, TRIANGLES;
 								//Therefore, it automatically uses a flush at the beginning
 
-void Mamuna_DrawVertexes(Mamuna_Renderer* renderer,	size_t countVertexes,
-		VERTEX* vertexes, size_t countIndices, uint32_t* indices,
-		size_t instances); //It tells the graphics card which vertices are to be rendered;
+void Mamuna_DrawVertexes(Mamuna_Renderer* renderer, size_t countIndices, size_t instances, size_t firstIndex,
+		size_t prevVertexes, size_t baseInstance); //It tells the graphics card which vertices are to be rendered;
 				   //in other words, it issues a draw call.
 
-Mamuna_Shader* Mamuna_CreateShader(Mamuna_Renderer* renderer,
-		const char* vs, const char* fs); //This creates a shader consisting of a vertex shader and a fragment shader
+Mamuna_Shader* Mamuna_CreateShader(Mamuna_Renderer* renderer, const char* format, ...);
 
 void Mamuna_DestroyShader(Mamuna_Shader* shader); //This destroys a shader
 //This creates an SSBO (Shader Storage Buffer Object) or UBO (Uniform Buffer Object) for your shader
-Mamuna_Buffer* Mamuna_BufferCreate(Mamuna_Renderer* renderer, Mamuna_Shader* shader, const char* nameBuffer,
-		size_t bytesPerElement, MAMUNA_BUFFER_TYPE type);
+Mamuna_Buffer* Mamuna_CreateBuffer(Mamuna_Renderer* renderer, size_t bytesPerElement, size_t countToIncrease);
 //This connects your buffer to another shader, meaning one buffer can be used by multiple shaders
-void Mamuna_BufferAlignToOtherShader(Mamuna_Buffer* buffer, Mamuna_Shader* shader, const char* nameBuffer);
-//This destroys your buffer
-void Mamuna_BufferDestroy(Mamuna_Buffer* buffer);
-//This sets the element with the specified index in your buffer
-void Mamuna_BufferSetElement(Mamuna_Renderer* renderer, Mamuna_Buffer* buffer, size_t index, void* element);
-//This returns the element with the specified index from your buffer
-void* Mamuna_BufferGetElement(Mamuna_Buffer* buffer, size_t index);
-//This clears your buffer
-void Mamuna_BufferClear(Mamuna_Renderer* renderer, Mamuna_Buffer* buffer);
+void Mamuna_ShaderAttachBuffer(Mamuna_Shader* shader, Mamuna_Buffer** buffer, const char* nameBuffer, MAMUNA_ENUM type);
 
-//This creates a texture; “channels” refers to the number of channels you want in the texture; 1 means only the red channel (R8);
-//2 means the red and green channels (RG8);
-//3 means the red, green, and blue channels (RGB8);
-//4 means the red, green, blue, and alpha channels (RGBA8) 
-Mamuna_Texture* Mamuna_CreateTexture(int w, int h, bool linear, int channels);
-//This creates a texture using a photo
-Mamuna_Texture* Mamuna_CreateTextureFromImage(Mamuna_Renderer* renderer, Mamuna_Image* image, bool linear);
+void Mamuna_ShaderDetachBuffer(Mamuna_Renderer* renderer, 
+		Mamuna_Shader* shader, const char* nameBuffer, MAMUNA_ENUM type);
+//This destroys your buffer
+void Mamuna_DestroyBuffer(Mamuna_Buffer* buffer);
+//This sets the element with the specified index in your buffer
+void Mamuna_BufferSetElement(Mamuna_Renderer* renderer, Mamuna_Buffer* buffer, size_t index, size_t count, void* element);
+//This returns the element with the specified index from your buffer
+void* Mamuna_BufferGetElement(Mamuna_Renderer* renderer, Mamuna_Buffer* buffer, size_t index);
+//This clears your buffer
+void Mamuna_BufferClearRange(Mamuna_Renderer* renderer, Mamuna_Buffer* buffer, size_t offset, size_t range);
+void Mamuna_BufferClear(Mamuna_Renderer* renderer, Mamuna_Buffer* buffer);
+size_t MamunaBufferGetRealSize(Mamuna_Buffer* buffer);
+
+Mamuna_VAO* Mamuna_CreateVAO(Mamuna_Renderer* renderer);
+void Mamuna_DestroyVAO(Mamuna_VAO* vao);
+void Mamuna_VAOBindVertexBuffer(Mamuna_VAO* vao, Mamuna_Buffer* vbo, uint32_t index, uint32_t offset, size_t stride, uint32_t divisor);
+void Mamuna_VAOBindElementBuffer(Mamuna_VAO* vao, Mamuna_Buffer* ebo, MAMUNA_ENUM type);
+void Mamuna_VAOVertexAttrib(Mamuna_VAO* vao, uint32_t index, uint32_t countOfValues, MAMUNA_ENUM type, bool normalized, size_t relativeOffset,
+		uint32_t bufferIndex);
+
+Mamuna_Texture* Mamuna_CreateTexture(Mamuna_Renderer* renderer, MAMUNA_ENUM type, MAMUNA_ENUM format, size_t w, size_t h, size_t d, size_t levels);
 //This destroys texture
 void Mamuna_DestroyTexture(Mamuna_Texture* texture);
-//This copies your texture
-Mamuna_Texture* Mamuna_CopyTexture(Mamuna_Texture* texture, bool linear);
+void Mamuna_TextureSetParameteri(Mamuna_Texture* texture, MAMUNA_ENUM param, int value);
+void Mamuna_TextureSetParameterf(Mamuna_Texture* texture, MAMUNA_ENUM param, float value);
+void Mamuna_TextureLoadImage(Mamuna_Texture* texture, Mamuna_Image* image, int xoffset, int yoffset, int zoffset,
+		size_t width, size_t height, size_t depth, size_t level, MAMUNA_ENUM type);
 //This returns size of your texture
-void Mamuna_GetTextureSize(Mamuna_Texture* texture, int* w, int* h);
+void Mamuna_GetTextureSize(Mamuna_Texture* texture, int* w, int* h, int* d, int* levels);
+MAMUNA_ENUM Mamuna_GetTextureFormat(Mamuna_Texture* texture);
+MAMUNA_ENUM Mamuna_GetTextureType(Mamuna_Texture* texture);
+
+void Mamuna_Enable(Mamuna_Renderer* renderer, MAMUNA_ENUM opt);
+void Mamuna_Disable(Mamuna_Renderer* renderer, MAMUNA_ENUM opt);
+void Mamuna_PolygonOffset(Mamuna_Renderer* renderer, float factor, float units, float clamp);
+void Mamuna_PrimitiveRestartIndex(Mamuna_Renderer* renderer, uint32_t index);
+
+
+
 //This loads Text File; example source of your vertex shader or fragment shader
-char* Mamuna_LoadTextFile(const char* path);
+char* Mamuna_LoadFile(const char* path, size_t* bytes);
+//This loads image file from memory
+Mamuna_Image* Mamuna_LoadImageFromMem(const unsigned char* buffer, size_t bytes);
 //This loads an image
 Mamuna_Image* Mamuna_LoadImage(const char* path);
 //This unloads an image
@@ -287,7 +556,9 @@ Mamuna_Image* Mamuna_FontGetBitmap(Mamuna_Font* font);
 void Mamuna_FontGetUVsChar(Mamuna_Font* font, char32_t c, float* cursorX, float sizeFont,
 		float baselineY, vec4 uv, vec4 pos);
 //This returns the x-dimension of your character
-float Mamuna_FontGetSizeXChar(Mamuna_Font* font, char32_t c);
+float Mamuna_FontGetSizeXChar(Mamuna_Font* font, char32_t c, float sizeFont);
+//This returns sizeYfont
+int Mamuna_FontGetSizeYFont(Mamuna_Font* font, float sizeFont);
 //This creates image; example You're building a tilemap editor that also needs to save the texture in the map file,
 //so you have to load it correctly as well
 Mamuna_Image* Mamuna_CreateImage(unsigned char* pixels, int w, int h, int channels);
@@ -300,9 +571,9 @@ unsigned char* Mamuna_GetImagePixels(Mamuna_Image* image);
 
 //This creates hashmap; example A scene must contain objects that you can reference by their IDs.
 //countToIncrease by how much should it increase
-Mamuna_Hashmap* Mamuna_HashmapCreate(size_t bytesPerElement, size_t countToIncrease);
+Mamuna_Hashmap* Mamuna_CreateHashmap(size_t bytesPerElement, size_t countToIncrease);
 //This destroys hashmap; returns a array of your objects and count; You have to handle their destruction
-void* Mamuna_HashmapDestroy(Mamuna_Hashmap* hashmap, size_t* count);
+void* Mamuna_DestroyHashmap(Mamuna_Hashmap* hashmap, size_t* count);
 //This returns array of your elements in hashmap and count
 void* Mamuna_HashmapGetAll(Mamuna_Hashmap* hashmap, size_t* count);
 //This adds your element to hashmap
@@ -315,9 +586,9 @@ void* Mamuna_HashmapGetElement(Mamuna_Hashmap* hashmap, const char* id);
 size_t Mamuna_HashmapGetCount(Mamuna_Hashmap* hashmap);
 
 //This creates vector; countToIncrease by how much should it increase
-Mamuna_Vector* Mamuna_VectorCreate(size_t bytesPerElement, size_t countToIncrease);
+Mamuna_Vector* Mamuna_CreateVector(size_t bytesPerElement, size_t countToIncrease);
 //This destroys vector; returns a array of your objects and count; You have to handle their destruction
-void* Mamuna_VectorDestroy(Mamuna_Vector* vector, size_t* count);
+void* Mamuna_DestroyVector(Mamuna_Vector* vector, size_t* count);
 //This returns array of your elements in vector and count
 void* Mamuna_VectorGetAll(Mamuna_Vector* vector, size_t* count);
 //This adds your element to end of array
