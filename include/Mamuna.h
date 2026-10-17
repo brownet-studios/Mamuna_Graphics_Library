@@ -375,6 +375,10 @@ typedef enum MAMUNA_ENUM {
 	MAMUNA_DECR,
 	MAMUNA_DECR_WRAP,
 
+	MAMUNA_POINT,
+	MAMUNA_LINE,
+	MAMUNA_FILL,
+
 	MAMUNA_HINT_VISIBLE,
 	MAMUNA_HINT_DECORATED,
 	MAMUNA_HINT_AUTO_ICONIFY,
@@ -502,20 +506,19 @@ void Mamuna_ShaderDetachBuffer(Mamuna_Renderer* renderer,
 //This destroys your buffer
 void Mamuna_DestroyBuffer(Mamuna_Buffer* buffer);
 //This sets the element with the specified index in your buffer
-void Mamuna_BufferSetElement(Mamuna_Renderer* renderer, Mamuna_Buffer* buffer, size_t index, size_t count, void* element);
+bool Mamuna_BufferSetElement(Mamuna_Renderer* renderer, Mamuna_Buffer* buffer, size_t index, size_t count, void* element);
 //This returns the element with the specified index from your buffer
 void* Mamuna_BufferGetElement(Mamuna_Renderer* renderer, Mamuna_Buffer* buffer, size_t index);
 //This clears your buffer
 void Mamuna_BufferClearRange(Mamuna_Renderer* renderer, Mamuna_Buffer* buffer, size_t offset, size_t range);
 void Mamuna_BufferClear(Mamuna_Renderer* renderer, Mamuna_Buffer* buffer);
-size_t MamunaBufferGetRealSize(Mamuna_Buffer* buffer);
+size_t Mamuna_BufferGetRealSize(Mamuna_Buffer* buffer);
 
 Mamuna_VAO* Mamuna_CreateVAO(Mamuna_Renderer* renderer);
 void Mamuna_DestroyVAO(Mamuna_VAO* vao);
 void Mamuna_VAOBindVertexBuffer(Mamuna_VAO* vao, Mamuna_Buffer* vbo, uint32_t index, uint32_t offset, size_t stride, uint32_t divisor);
 void Mamuna_VAOBindElementBuffer(Mamuna_VAO* vao, Mamuna_Buffer* ebo, MAMUNA_ENUM type);
-void Mamuna_VAOVertexAttrib(Mamuna_VAO* vao, uint32_t index, uint32_t countOfValues, MAMUNA_ENUM type, bool normalized, size_t relativeOffset,
-		uint32_t bufferIndex);
+void Mamuna_VAOVertexAttrib(Mamuna_VAO* vao, uint32_t index, uint32_t countOfValues, MAMUNA_ENUM type, bool normalized, size_t relativeOffset, uint32_t bufferIndex);
 
 Mamuna_Texture* Mamuna_CreateTexture(Mamuna_Renderer* renderer, MAMUNA_ENUM type, MAMUNA_ENUM format, size_t w, size_t h, size_t d, size_t levels);
 //This destroys texture
@@ -533,8 +536,19 @@ void Mamuna_Enable(Mamuna_Renderer* renderer, MAMUNA_ENUM opt);
 void Mamuna_Disable(Mamuna_Renderer* renderer, MAMUNA_ENUM opt);
 void Mamuna_PolygonOffset(Mamuna_Renderer* renderer, float factor, float units, float clamp);
 void Mamuna_PrimitiveRestartIndex(Mamuna_Renderer* renderer, uint32_t index);
+void Mamuna_BlendFunc(Mamuna_Renderer* renderer, MAMUNA_ENUM sfactor, MAMUNA_ENUM dfactor);
+void Mamuna_ColorLogicOp(Mamuna_Renderer* renderer, MAMUNA_ENUM opcode);
+void Mamuna_CullFace(Mamuna_Renderer* renderer, MAMUNA_ENUM mode);
+void Mamuna_FrontFace(Mamuna_Renderer* renderer, MAMUNA_ENUM mode);
+void Mamuna_DepthRange(Mamuna_Renderer* renderer, float near, float far);
+void Mamuna_DepthFunc(Mamuna_Renderer* renderer, MAMUNA_ENUM func);
+void Mamuna_LineWidth(Mamuna_Renderer* renderer, float width);
+void Mamuna_Scissor(Mamuna_Renderer* renderer, int x, int y, size_t width, size_t height);
+void Mamuna_StencilFunc(Mamuna_Renderer* renderer, MAMUNA_ENUM func, int ref, uint32_t mask);
+void Mamuna_StencilOp(Mamuna_Renderer* renderer, MAMUNA_ENUM sFail, MAMUNA_ENUM dpFail, MAMUNA_ENUM dpPass);
+void Mamuna_PolygonMode(Mamuna_Renderer* renderer, MAMUNA_ENUM mode);
 
-
+void Mamuna_DispatchCompute(Mamuna_Renderer* renderer, uint32_t num_Gr_x, uint32_t num_Gr_y, uint32_t num_Gr_z);
 
 //This loads Text File; example source of your vertex shader or fragment shader
 char* Mamuna_LoadFile(const char* path, size_t* bytes);
