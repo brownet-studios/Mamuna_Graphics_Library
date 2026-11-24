@@ -15,6 +15,12 @@ typedef struct Mamuna_Node {
 	void* ptr;
 } Mamuna_Node;
 
+typedef struct Mamuna_Node_Int {
+	Mamuna_FLAG flag;
+	int id;
+	void* ptr;
+} Mamuna_Node_Int;
+
 typedef struct Mamuna_Hashmap {
 	Mamuna_Node* nodes;
 	void* data;
@@ -24,7 +30,16 @@ typedef struct Mamuna_Hashmap {
 	size_t countToIncrease;
 } Mamuna_Hashmap;
 
-Mamuna_Hashmap* Mamuna_HashmapCreate(size_t bytesPerElement, size_t countToIncrease){
+typedef struct Mamuna_Hashmap_Int {
+	Mamuna_Node_Int* nodes;
+	void* data;
+	size_t count;
+	size_t capacity;
+	size_t bytesPerElement;
+	size_t countToIncrease;
+} Mamuna_Hashmap_Int;
+
+Mamuna_Hashmap* Mamuna_CreateHashmap(size_t bytesPerElement, size_t countToIncrease){
 	Mamuna_Hashmap* map = malloc(sizeof(Mamuna_Hashmap));
 
 	map->nodes = calloc(countToIncrease, sizeof(Mamuna_Node));
@@ -38,7 +53,7 @@ Mamuna_Hashmap* Mamuna_HashmapCreate(size_t bytesPerElement, size_t countToIncre
 	return map;
 }
 
-void* Mamuna_HashmapDestroy(Mamuna_Hashmap* hashmap, size_t* count){
+void* Mamuna_DestroyHashmap(Mamuna_Hashmap* hashmap, size_t* count){
 	if(!hashmap || !count) return NULL;
 
 	*count = hashmap->count;
@@ -64,7 +79,7 @@ void* Mamuna_HashmapGetAll(Mamuna_Hashmap* hashmap, size_t* count){
 }
 
 size_t hash(const char* id){
-	size_t h = 102313;
+	size_t h = 1241231241233;
 
 	char c;
 	while((c = *(id++)) != '\0' && c != EOF){
@@ -211,5 +226,187 @@ void* Mamuna_HashmapGetElement(Mamuna_Hashmap* hashmap, const char* id){
 }
 
 size_t Mamuna_HashmapGetCount(Mamuna_Hashmap* hashmap){
+	if(!hashmap) return 0;
+	return hashmap->count;
+}
+
+Mamuna_Hashmap_Int* Mamuna_CreateHashmapInt(size_t bytesPerElement, size_t countToIncrease){
+	Mamuna_Hashmap_Int* map = malloc(sizeof(Mamuna_Hashmap_Int));
+
+	map->nodes = calloc(countToIncrease, sizeof(Mamuna_Node_Int));
+	map->data = calloc(countToIncrease, bytesPerElement);
+
+	map->count = 0;
+	map->capacity = countToIncrease;
+	map->bytesPerElement = bytesPerElement;
+	map->countToIncrease = countToIncrease;
+
+	return map;
+}
+
+void* Mamuna_DestroyHashmapInt(Mamuna_Hashmap_Int* hashmap, size_t* count){
+	if(!hashmap || !count) return NULL;
+
+	*count = hashmap->count;
+
+	free(hashmap->nodes);
+	void* data = hashmap->data;
+	free(hashmap);
+
+	return data;
+}
+
+void* Mamuna_HashmapIntGetAll(Mamuna_Hashmap_Int* hashmap, size_t* count){
+	if(!hashmap || !count) return NULL;
+	*count = hashmap->count;
+	return hashmap->data;
+}
+
+size_t hashInt(size_t i){
+	size_t h = 67734123212312UL;
+	i <<= 7;
+	i ^= h;
+
+
+	return i;
+}
+
+void Mamuna_HashmapIntRealloc(Mamuna_Hashmap_Int* hashmap, size_t nc){
+	hashmap->data = realloc(hashmap->data, hashmap->bytesPerElement * nc);
+	Mamuna_Node_Int* tmpNodes = calloc(nc, sizeof(Mamuna_Node_Int));
+
+	for(size_t i = 0; i < hashmap->capacity; ++i){
+		Mamuna_Node_Int* tmpA = &hashmap->nodes[i];
+		if(tmpA->flag != USED) continue;
+
+		size_t index = hashInt(tmpA->id) % nc;
+		Mamuna_Node_Int* tmpB = &tmpNodes[index];
+		while(tmpB->flag != EMPTY){
+			index = ++index % nc;
+			tmpB = &tmpNodes[index];
+		}
+
+		tmpB->id = tmpA->id;
+		tmpB->ptr = tmpA->ptr;
+		tmpB->flag = tmpA->flag;
+	}
+
+	free(hashmap->nodes);
+	hashmap->nodes = tmpNodes;
+	hashmap->capacity = nc;
+}
+
+void Mamuna_HashmapIntAddElement(Mamuna_Hashmap_Int* hashmap, size_t id, void* element){
+	if(!hashmap || !element) return;
+
+	if(hashmap->count + 1 >= hashmap->capacity){
+		Mamuna_HashmapIntRealloc(hashmap, hashmap->capacity + hashmap->countToIncrease);
+	}
+	if(hashmap->capacity > hashmap->countToIncrease * 2 && hashmap->count <= (hashmap->capacity - hashmap->countToIncrease * 2)){
+		Mamuna_HashmapIntRealloc(hashmap, hashmap->capacity - hashmap->countToIncrease);
+	}
+
+	size_t index = hashInt(id) % hashmap->capacity;
+	size_t start = index;
+	
+	Mamuna_Node_Int* tmp = &hashmap->nodes[index];
+	Mamuna_Node_Int* fd = NULL;
+	while(tmp->flag != EMPTY){
+		if(tmp->flag == DELETED && !fd){
+			fd = tmp;
+		}
+
+		if(tmp->flag == USED && tmp->id == id){
+			memcpy(tmp->ptr, element, hashmap->bytesPerElement);
+			return;
+		}
+
+		index = ++index % hashmap->capacity;
+		if(index == start){
+			if(fd) break;
+			return;
+		}
+
+		tmp = &hashmap->nodes[index];
+	}
+
+	if(fd) tmp = fd;
+
+	tmp->flag = USED;
+	tmp->ptr = hashmap->data + (hashmap->count++ * hashmap->bytesPerElement);
+	tmp->id = id;
+	memcpy(tmp->ptr, element, hashmap->bytesPerElement);
+}
+
+Mamuna_Node_Int* Mamuna_HashmapIntGetNode(Mamuna_Hashmap_Int* hashmap, size_t id){
+	if(!hashmap) return NULL;
+
+	size_t index = hashInt(id) % hashmap->capacity;
+	size_t start = index;
+	
+	Mamuna_Node_Int* tmp = &hashmap->nodes[index];
+	while(tmp->flag != EMPTY){
+		if(tmp->flag == USED && tmp->id == id){
+			return tmp;
+		}
+
+		index = ++index % hashmap->capacity;
+		if(start == index){
+			break;
+		}
+
+		tmp = &hashmap->nodes[index];
+	}
+
+	return NULL;
+}
+
+void* Mamuna_HashmapIntRemoveElement(Mamuna_Hashmap_Int* hashmap, size_t id){
+	Mamuna_Node_Int* tmp = Mamuna_HashmapIntGetNode(hashmap, id);
+	if(!tmp) return NULL;
+
+	void* data = malloc(hashmap->bytesPerElement);
+	memcpy(data, tmp->ptr, hashmap->bytesPerElement);
+	
+	size_t i;
+	for(i = 0; i < hashmap->count; ++i){
+		if((hashmap->data + i * hashmap->bytesPerElement) == tmp->ptr){
+			break;
+		}
+	}
+
+	size_t delta = hashmap->count - 1 - i;
+	
+	for(i = 0; i < hashmap->capacity; ++i){
+		Mamuna_Node_Int* tmpNode = &hashmap->nodes[i];
+		if(tmpNode->ptr == (tmp->ptr + delta * hashmap->bytesPerElement)){
+			tmpNode->ptr = tmp->ptr;
+		}
+	}
+
+	memcpy(tmp->ptr, tmp->ptr + delta * hashmap->bytesPerElement, hashmap->bytesPerElement);
+	memset(tmp->ptr + delta * hashmap->bytesPerElement, 0, hashmap->bytesPerElement);
+
+
+	--hashmap->count;
+
+	if(hashmap->capacity > hashmap->countToIncrease * 2 && hashmap->count <= (hashmap->capacity - hashmap->countToIncrease * 2)){
+		Mamuna_HashmapIntRealloc(hashmap, hashmap->capacity - hashmap->countToIncrease);
+	}
+	
+	tmp->flag = DELETED;
+
+	return data;
+}
+
+void* Mamuna_HashmapIntGetElement(Mamuna_Hashmap_Int* hashmap, size_t id){
+	Mamuna_Node_Int* tmp = Mamuna_HashmapIntGetNode(hashmap, id);
+	if(!tmp) return NULL;
+
+	return tmp->ptr;
+}
+
+size_t Mamuna_HashmapIntGetCount(Mamuna_Hashmap_Int* hashmap){
+	if(!hashmap) return 0;
 	return hashmap->count;
 }

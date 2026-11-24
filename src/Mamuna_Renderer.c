@@ -1,5 +1,5 @@
 #include <glad/gl.h>
-#include <GLFW/glfw3.h>
+
 
 #include <Mamuna.h>
 
@@ -41,7 +41,7 @@ typedef struct Mamuna_VAO {
 } Mamuna_VAO;
 
 typedef struct Mamuna_Renderer {
-	GLFWwindow* window;
+	Mamuna_Context* context;
 	Mamuna_Shader* currentShader;
 	Mamuna_Texture** currentTextures;
 	Mamuna_VAO* currentVAO;	
@@ -55,6 +55,7 @@ typedef struct Mamuna_Renderer {
 	size_t countRIBO;
 	size_t capacityRIBO;
 	size_t currentW, currentH;
+	int winW, winH;
 	size_t texturesCount;
 	GLsync fence;
 } Mamuna_Renderer;
@@ -520,6 +521,76 @@ GLenum Mamuna_GetGLEnum(MAMUNA_ENUM e){
 	return GL_INVALID_ENUM;
 }
 
+GLenum Mamuna_GetGLBaseFormat(GLenum internal){
+	switch(internal){
+		case GL_R8:
+		case GL_R8_SNORM:
+		case GL_R16:
+		case GL_R16_SNORM:
+		case GL_R16F:
+		case GL_R32F:
+		case GL_R8I:
+		case GL_R8UI:
+		case GL_R16I:
+		case GL_R16UI:
+		case GL_R32I:
+		case GL_R32UI:
+			return GL_RED;
+		case GL_RG8:
+		case GL_RG8_SNORM:
+		case GL_RG16:
+		case GL_RG16_SNORM:
+		case GL_RG16F:
+		case GL_RG32F:
+		case GL_RG8I:
+		case GL_RG8UI:
+		case GL_RG16I:
+		case GL_RG16UI:
+		case GL_RG32I:
+		case GL_RG32UI:
+			return GL_RG;
+		case GL_R3_G3_B2:
+		case GL_RGB4:
+		case GL_RGB5:
+		case GL_RGB8:
+		case GL_RGB8_SNORM:
+		case GL_RGB10:
+		case GL_RGB12:
+		case GL_RGB16_SNORM:
+		case GL_SRGB8:
+		case GL_RGB16F:
+		case GL_RGB32F:
+		case GL_RGB8I:
+		case GL_RGB8UI:
+		case GL_RGB16I:
+		case GL_RGB16UI:
+		case GL_RGB32I:
+		case GL_RGB32UI:
+			return GL_RGB;
+		case GL_RGBA2:
+		case GL_RGBA4:
+		case GL_RGB5_A1:
+		case GL_RGBA8:
+		case GL_RGBA8_SNORM:
+		case GL_RGB10_A2:
+		case GL_RGB10_A2UI:
+		case GL_RGBA12:
+		case GL_RGBA16:
+		case GL_SRGB8_ALPHA8:
+		case GL_RGBA16F:
+		case GL_RGBA32F:
+		case GL_RGBA8I:
+		case GL_RGBA8UI:
+		case GL_RGBA16I:
+		case GL_RGBA16UI:
+		case GL_RGBA32I:
+		case GL_RGBA32UI:
+			return GL_RGBA;
+	}
+
+	return GL_INVALID_ENUM;
+}
+
 bool Mamuna_ShaderIsCompile(GLuint shader){
 	int success;
 	glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
@@ -552,13 +623,22 @@ bool Mamuna_ProgramIsLinked(GLuint prog){
 Mamuna_Renderer* Mamuna_CreateRenderer(Mamuna_Window* window){
 	if(!window) return NULL;
 	Mamuna_Renderer* renderer = malloc(sizeof(Mamuna_Renderer));
-	renderer->window = (GLFWwindow*)window;
-
-	glfwMakeContextCurrent(renderer->window);
-
-	if(!gladLoadGL(glfwGetProcAddress)){
+	renderer->context = Mamuna_CreateContext(window);
+	if(!renderer->context){
+		free(renderer);
 		return NULL;
 	}
+	if(Mamuna_MakeCurrent(window, renderer->context) != MAMUNA_SUCCESS){
+		Mamuna_DestroyContext(renderer->context);
+		free(renderer);
+		return NULL;
+	};
+	printf("MakeCurrent\n");
+
+	if(!gladLoadGL(Mamuna_GetProcAddress)){
+		return NULL;
+	}
+	printf("loaded\n");
 
 	renderer->flags = GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT;
 	glCreateBuffers(1, &renderer->RIBO);
@@ -572,7 +652,9 @@ Mamuna_Renderer* Mamuna_CreateRenderer(Mamuna_Window* window){
 
 	
 	int w, h;
-	glfwGetFramebufferSize((GLFWwindow*)window, &w, &h);
+	Mamuna_WindowGetSize(window, &w, &h);
+	renderer->winW = w;
+	renderer->winH = h;
 	glViewport(0,0,w,h);
 
 	int samples;
@@ -600,7 +682,7 @@ Mamuna_Renderer* Mamuna_CreateRenderer(Mamuna_Window* window){
 	glTextureParameteri(renderer->windowTexture, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTextureParameteri(renderer->windowTexture, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+	//glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
 
 
@@ -626,17 +708,33 @@ Mamuna_Renderer* Mamuna_CreateRenderer(Mamuna_Window* window){
 
 void Mamuna_DestroyRenderer(Mamuna_Renderer* renderer){
 	if(!renderer) return;
-	renderer->window = NULL;
 
 	glDeleteTextures(1, &renderer->windowTexture);
 	glDeleteFramebuffers(1, &renderer->FBO);
 	glDeleteRenderbuffers(1, &renderer->RB);
 	glUnmapNamedBuffer(renderer->RIBO);
 	glDeleteBuffers(1, &renderer->RIBO);
-
+	Mamuna_DestroyContext(renderer->context);
 
 	free(renderer);
 	renderer = NULL;
+}
+
+void Mamuna_RendererChangeWindow(Mamuna_Renderer* renderer, Mamuna_Window* window){
+	if(!renderer || !window) return;
+	if(Mamuna_MakeCurrent(window, renderer->context) != MAMUNA_SUCCESS){
+		Mamuna_DestroyContext(renderer->context);
+		free(renderer);
+		return;
+	};
+
+	int w, h;
+	Mamuna_WindowGetSize(window, &w, &h);
+	renderer->winW = w;
+	renderer->winH = h;
+	renderer->currentW = w;
+	renderer->currentH = h;
+	glViewport(0,0,w,h);
 }
 
 void Mamuna_FlushRenderer(Mamuna_Renderer* renderer){
@@ -726,10 +824,8 @@ void Mamuna_SetRenderTargets(Mamuna_Renderer* renderer, size_t amount, Mamuna_Te
 	
 	if(amount == 0 || !textures){
 		glNamedFramebufferTexture(renderer->FBO, GL_COLOR_ATTACHMENT0, renderer->windowTexture, 0);
-		int w, h;
-		glfwGetFramebufferSize((GLFWwindow*)renderer->window, &w, &h);
-		renderer->currentW = w;
-		renderer->currentH = h;
+		renderer->currentW = renderer->winW;
+		renderer->currentH = renderer->winH;
 		GLenum drawBuffers[] = {GL_COLOR_ATTACHMENT0};
 		glNamedFramebufferDrawBuffers(renderer->FBO, 1, drawBuffers);
 		return;
@@ -767,30 +863,38 @@ void Mamuna_ClearRenderer(Mamuna_Renderer* renderer, uint8_t r, uint8_t g, uint8
 			GL_STENCIL_BUFFER_BIT);
 }
 
-void Mamuna_RenderPresent(Mamuna_Renderer* renderer){
+void Mamuna_RenderPresent(Mamuna_Renderer* renderer, Mamuna_Window* window){
 	if(!renderer) return;
 	Mamuna_FlushRenderer(renderer);
 
 	Mamuna_SyncGPU(renderer);
 
 	
-	int w,h;
-	glfwGetFramebufferSize((GLFWwindow*)renderer->window, &w, &h);
+
 
 	glBlitNamedFramebuffer(renderer->FBO, 0,
 			0, 0,
 			renderer->currentW, renderer->currentH,
 			0, 0,
-			w, h,
+			renderer->winW, renderer->winH,
 			GL_COLOR_BUFFER_BIT,
 			GL_NEAREST
 			);
 
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	Mamuna_WindowSwapBuffers(window);
+
+	GLenum err;
+	while ((err = glGetError()) != GL_NO_ERROR) {
+		printf("GL error after SwapBuffers: 0x%x\n", err);
+	}
+
+
 	renderer->fence = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
 
-	glfwSwapBuffers(renderer->window);
 
-	
+
 }
 
 void Mamuna_SetVAO(Mamuna_Renderer* renderer, Mamuna_VAO* vao){
@@ -1258,43 +1362,68 @@ bool Mamuna_CanCreateTexture(MAMUNA_ENUM type, MAMUNA_ENUM format, size_t w, siz
 				glGetTexLevelParameteriv(GL_PROXY_TEXTURE_3D, 0, GL_TEXTURE_WIDTH, &width);
 				return width > 0;
 			} break;
+		case MAMUNA_TEXTURE_2D_MULTISAMPLE:
+			{
+				glTexStorage2DMultisample(GL_PROXY_TEXTURE_2D_MULTISAMPLE, levels, internal, w, h, GL_TRUE);
+				int width;
+				glGetTexLevelParameteriv(GL_PROXY_TEXTURE_2D_MULTISAMPLE, 0, GL_TEXTURE_WIDTH, &width);
+				return width > 0;
+			} break;
+		case MAMUNA_TEXTURE_2D_MULTISAMPLE_ARRAY:
+			{
+				glTexStorage3DMultisample(GL_PROXY_TEXTURE_2D_MULTISAMPLE, levels, internal, w, h, d, GL_TRUE);
+				int width;
+				glGetTexLevelParameteriv(GL_PROXY_TEXTURE_2D_MULTISAMPLE, 0, GL_TEXTURE_WIDTH, &width);
+				return width > 0;
+			} break;
+
 	}
 
 	return false;
 }
 
-Mamuna_Texture* Mamuna_CreateTexture(Mamuna_Renderer* renderer, MAMUNA_ENUM type, MAMUNA_ENUM format, size_t w, size_t h, size_t d, size_t levels){
-	if(!renderer || !levels) return NULL;
+Mamuna_Texture* Mamuna_CreateTexture(Mamuna_Renderer* renderer, MAMUNA_ENUM type, MAMUNA_ENUM format, size_t w, size_t h, size_t d, size_t levelsOrSamples){
+	if(!renderer || !levelsOrSamples) return NULL;
 	GLenum internal = Mamuna_GetGLEnum(format);
 	if(internal == GL_INVALID_ENUM) return NULL;
 	GLenum glType = Mamuna_GetGLEnum(type);
 	if(glType == GL_INVALID_ENUM) return NULL;
 
-	if(!Mamuna_CanCreateTexture(type, format, w, h, d, levels)) return NULL;
+	if(!Mamuna_CanCreateTexture(type, format, w, h, d, levelsOrSamples)){
+		printf("ERROR WITH CREATE TEXTURE\n");
+		return NULL; 
+	}
 
 	Mamuna_Texture* Texture = malloc(sizeof(Mamuna_Texture));
 	glCreateTextures(glType, 1, &Texture->texture);
 	
 	switch(type){
 		case MAMUNA_TEXTURE_1D:
-			glTextureStorage1D(Texture->texture, levels, internal, w);
+			glTextureStorage1D(Texture->texture, levelsOrSamples, internal, w);
 			break;
 		case MAMUNA_TEXTURE_1D_ARRAY:
 		case MAMUNA_TEXTURE_2D:
-			glTextureStorage2D(Texture->texture, levels, internal, w, h);
+			glTextureStorage2D(Texture->texture, levelsOrSamples, internal, w, h);
 			break;
 		case MAMUNA_TEXTURE_2D_ARRAY:
 		case MAMUNA_TEXTURE_3D:
-			glTextureStorage3D(Texture->texture, levels, internal, w, h, d);
+			glTextureStorage3D(Texture->texture, levelsOrSamples, internal, w, h, d);
+			break;
+		case MAMUNA_TEXTURE_2D_MULTISAMPLE:
+			glTextureStorage2DMultisample(Texture->texture, levelsOrSamples, internal, w, h, GL_TRUE);
+			break;
+		case MAMUNA_TEXTURE_2D_MULTISAMPLE_ARRAY:
+			glTextureStorage3DMultisample(Texture->texture, levelsOrSamples, internal, w, h, d, GL_TRUE);
 			break;
 	}
 
 
 	Texture->w = w;
 	Texture->h = type == MAMUNA_TEXTURE_1D ? 1 : h;
-	Texture->d = type != MAMUNA_TEXTURE_3D && type != MAMUNA_TEXTURE_2D_ARRAY ? 1 : d;
+	Texture->d = type != MAMUNA_TEXTURE_3D && type != MAMUNA_TEXTURE_2D_ARRAY &&
+		type != MAMUNA_TEXTURE_2D_MULTISAMPLE_ARRAY ? 1 : d;
 	Texture->format = format;
-	Texture->levels = levels;
+	Texture->levels = levelsOrSamples;
 	Texture->type = type;
 
 	return Texture;
@@ -1357,11 +1486,15 @@ void Mamuna_TextureLoadImage(Mamuna_Texture* texture, Mamuna_Image* image, int x
 		size_t width, size_t height, size_t depth, size_t level, MAMUNA_ENUM type){
 	if(!texture || !image) return;
 	GLenum glFormat = Mamuna_GetGLEnum(texture->format);
-	if(glFormat == GL_INVALID_ENUM) return;
+	GLenum glBase = Mamuna_GetGLBaseFormat(glFormat);
+	GLenum glType = Mamuna_GetGLEnum(type);
+	if(glType == GL_INVALID_ENUM) return;
+	if(glBase == GL_INVALID_ENUM) return;
 	if(level >= texture->levels) level = texture->levels - 1;
 	if(width > texture->w) width = texture->w;
 	if(height > texture->h) height = texture->h;
 	if(depth > texture->d) depth = texture->d;
+
 
 	unsigned char* pixels = Mamuna_GetImagePixels(image);
 	int iW, iH;
@@ -1372,17 +1505,17 @@ void Mamuna_TextureLoadImage(Mamuna_Texture* texture, Mamuna_Image* image, int x
 	switch(texture->type){
 		case MAMUNA_TEXTURE_1D:
 			{
-				glTextureSubImage1D(texture->texture, level, xoffset, width, glFormat, GL_UNSIGNED_BYTE, pixels);	
+				glTextureSubImage1D(texture->texture, level, xoffset, width, glBase, glType, pixels);	
 			} break;
 		case MAMUNA_TEXTURE_1D_ARRAY:
 		case MAMUNA_TEXTURE_2D:
 			{
-				glTextureSubImage2D(texture->texture, level, xoffset, yoffset, width, height, glFormat, GL_UNSIGNED_BYTE, pixels);
+				glTextureSubImage2D(texture->texture, level, xoffset, yoffset, width, height, glBase, glType, pixels);
 			} break;
 		case MAMUNA_TEXTURE_2D_ARRAY:
 		case MAMUNA_TEXTURE_3D:
 			{
-				glTextureSubImage3D(texture->texture, level, xoffset, yoffset, zoffset, width, height, depth, glFormat, GL_UNSIGNED_BYTE, pixels);
+				glTextureSubImage3D(texture->texture, level, xoffset, yoffset, zoffset, width, height, depth, glBase, glType, pixels);
 			} break;
 		default:
 			break;
@@ -1391,10 +1524,14 @@ void Mamuna_TextureLoadImage(Mamuna_Texture* texture, Mamuna_Image* image, int x
 
 void Mamuna_GetTextureSize(Mamuna_Texture* texture, int* w, int* h, int* d, int* levels){
 	if(!texture) return;
-	*w = texture->w;
-	*h = texture->h;
-	*d = texture->d;
-	*levels = texture->levels;
+	if(w)
+		*w = texture->w;
+	if(h)
+		*h = texture->h;
+	if(d)
+		*d = texture->d;
+	if(levels)
+		*levels = texture->levels;
 }
 
 MAMUNA_ENUM Mamuna_GetTextureFormat(Mamuna_Texture* texture){
@@ -1538,6 +1675,10 @@ void Mamuna_DispatchCompute(Mamuna_Renderer* renderer, uint32_t num_Gr_x, uint32
 	glDispatchCompute(num_Gr_x, num_Gr_y, num_Gr_z);
 
 	renderer->fence = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+
+	glMemoryBarrier(GL_ALL_BARRIER_BITS);
+
+
 }
 
 void Mamuna_PolygonMode(Mamuna_Renderer* renderer, MAMUNA_ENUM mode){
