@@ -1,7 +1,7 @@
 #ifndef MAMUNA_H
 #define MAMUNA_H
 
-
+#if defined(__linux__)
 
 #define MAMUNA_KEY_SPACE 65
 #define MAMUNA_KEY_APOSTROPHE 48 
@@ -110,6 +110,117 @@
 #define MAMUNA_KEY_MENU 135
 #define MAMUNA_KEY_LAST MAMUNA_KEY_MENU
 
+#elif defined(_WIN32)
+
+#define MAMUNA_KEY_SPACE 0x20
+#define MAMUNA_KEY_APOSTROPHE 0xDE 
+#define MAMUNA_KEY_COMMA 0xBC
+#define MAMUNA_KEY_MINUS 0xBD
+#define MAMUNA_KEY_PERIOD 0xBE
+#define MAMUNA_KEY_SLASH 0xBF
+#define MAMUNA_KEY_0 0x30
+#define MAMUNA_KEY_1 0x31
+#define MAMUNA_KEY_2 0x32
+#define MAMUNA_KEY_3 0x33
+#define MAMUNA_KEY_4 0x34
+#define MAMUNA_KEY_5 0x35
+#define MAMUNA_KEY_6 0x36
+#define MAMUNA_KEY_7 0x37
+#define MAMUNA_KEY_8 0x38
+#define MAMUNA_KEY_9 0x39
+#define MAMUNA_KEY_SEMICOLON 0xBA
+#define MAMUNA_KEY_EQUAL 0xBB
+#define MAMUNA_KEY_A 0x41
+#define MAMUNA_KEY_B 0x42
+#define MAMUNA_KEY_C 0x43
+#define MAMUNA_KEY_D 0x44
+#define MAMUNA_KEY_E 0x45
+#define MAMUNA_KEY_F 0x46
+#define MAMUNA_KEY_G 0x47
+#define MAMUNA_KEY_H 0x48
+#define MAMUNA_KEY_I 0x49
+#define MAMUNA_KEY_J 0x4A
+#define MAMUNA_KEY_K 0x4B
+#define MAMUNA_KEY_L 0x4C
+#define MAMUNA_KEY_M 0x4D
+#define MAMUNA_KEY_N 0x4E
+#define MAMUNA_KEY_O 0x4F
+#define MAMUNA_KEY_P 0x50
+#define MAMUNA_KEY_Q 0x51
+#define MAMUNA_KEY_R 0x52
+#define MAMUNA_KEY_S 0x53
+#define MAMUNA_KEY_T 0x54
+#define MAMUNA_KEY_U 0x55
+#define MAMUNA_KEY_V 0x56
+#define MAMUNA_KEY_W 0x57
+#define MAMUNA_KEY_X 0x58
+#define MAMUNA_KEY_Y 0x59
+#define MAMUNA_KEY_Z 0x5A
+#define MAMUNA_KEY_LEFT_BRACKET 0xDB
+#define MAMUNA_KEY_BACKSLASH 0xDC
+#define MAMUNA_KEY_RIGHT_BRACKET 0xDD
+#define MAMUNA_KEY_GRAVE_ACCENT 0xC0
+#define MAMUNA_KEY_ESCAPE 0x1B
+#define MAMUNA_KEY_RETURN 0x0D
+#define MAMUNA_KEY_TAB 0x09
+#define MAMUNA_KEY_BACKSPACE 0x08
+#define MAMUNA_KEY_INSERT 0x2D
+#define MAMUNA_KEY_DELETE 0x2E
+#define MAMUNA_KEY_RIGHT 0x27
+#define MAMUNA_KEY_LEFT 0x25
+#define MAMUNA_KEY_DOWN 0x28
+#define MAMUNA_KEY_UP 0x26
+#define MAMUNA_KEY_PAGE_UP 0x21
+#define MAMUNA_KEY_PAGE_DOWN 0x22
+#define MAMUNA_KEY_HOME 0x24
+#define MAMUNA_KEY_END 0x23
+#define MAMUNA_KEY_CAPS_LOCK 0x14
+#define MAMUNA_KEY_SCROLL_LOCK 0x91
+#define MAMUNA_KEY_NUM_LOCK 0x90
+#define MAMUNA_KEY_PRINT_SCREEN 0x2C
+#define MAMUNA_KEY_PAUSE 0x13
+#define MAMUNA_KEY_F1 0x70
+#define MAMUNA_KEY_F2 0x71
+#define MAMUNA_KEY_F3 0x72
+#define MAMUNA_KEY_F4 0x73
+#define MAMUNA_KEY_F5 0x74
+#define MAMUNA_KEY_F6 0x75
+#define MAMUNA_KEY_F7 0x76
+#define MAMUNA_KEY_F8 0x77
+#define MAMUNA_KEY_F9 0x78
+#define MAMUNA_KEY_F10 0x79
+#define MAMUNA_KEY_F11 0x7A
+#define MAMUNA_KEY_F12 0x7B
+#define MAMUNA_KEY_KP_0 0x60
+#define MAMUNA_KEY_KP_1 0x61
+#define MAMUNA_KEY_KP_2 0x62
+#define MAMUNA_KEY_KP_3 0x63
+#define MAMUNA_KEY_KP_4 0x64
+#define MAMUNA_KEY_KP_5 0x65
+#define MAMUNA_KEY_KP_6 0x66
+#define MAMUNA_KEY_KP_7 0x67
+#define MAMUNA_KEY_KP_8 0x68
+#define MAMUNA_KEY_KP_9 0x69
+#define MAMUNA_KEY_KP_DECIMAL 0x6E
+#define MAMUNA_KEY_KP_DIVIDE 0x6F
+#define MAMUNA_KEY_KP_MULTIPLY 0x6A
+#define MAMUNA_KEY_KP_SUBTRACT 0x6D
+#define MAMUNA_KEY_KP_ADD 0x6B
+#define MAMUNA_KEY_KP_ENTER 0x0D
+#define MAMUNA_KEY_KP_EQUAL 0x92
+#define MAMUNA_KEY_LEFT_SHIFT 0xA0
+#define MAMUNA_KEY_LEFT_CONTROL 0xA2
+#define MAMUNA_KEY_LEFT_ALT 0xA4
+#define MAMUNA_KEY_LEFT_SUPER 0x5B
+#define MAMUNA_KEY_RIGHT_SHIFT 0xA1
+#define MAMUNA_KEY_RIGHT_CONTROL 0xA3
+#define MAMUNA_KEY_RIGHT_ALT 0xA5
+#define MAMUNA_KEY_RIGHT_SUPER 0x5C
+#define MAMUNA_KEY_MENU 0x12
+#define MAMUNA_KEY_LAST MAMUNA_KEY_APOSTROPHE
+
+#endif
+
 #define MAMUNA_CONTEXT_GL_PROFILE_CORE_BIT (1 << 0)
 #define MAMUNA_CONTEXT_GL_PROFILE_COMP_BIT (1 << 1)
 
@@ -129,13 +240,10 @@
 
 typedef enum Mamuna_Button {
 	MAMUNA_LEFT_BUTTON = (1 << 0),
-	MAMUNA_RIGHT_BUTTON = (1 << 1),
-	MAMUNA_MIDDLE_BUTTON = (1 << 2),
-	MAMUNA_BUTTON_4 = (1 << 3),
-	MAMUNA_BUTTON_5 = (1 << 4),
-	MAMUNA_BUTTON_6 = (1 << 5),
-	MAMUNA_BUTTON_7 = (1 << 6),
-	MAMUNA_BUTTON_8 = (1 << 7),
+	MAMUNA_MIDDLE_BUTTON = (1 << 1),
+	MAMUNA_RIGHT_BUTTON = (1 << 2),
+	MAMUNA_XBUTTON_1 = (1 << 7),
+	MAMUNA_XBUTTON_2 = (1 << 8),
 } Mamuna_Button;
 
 typedef enum MAMUNA_ENUM {
@@ -412,6 +520,9 @@ typedef enum MAMUNA_ENUM {
 
 	MAMUNA_NONE,
 	MAMUNA_TRANSPARENT_RGB,
+
+	MAMUNA_WINDOW_MODE_BORDERLESS,
+	MAMUNA_WINDOW_MODE_WINDOWED,
 } MAMUNA_ENUM;
 
 typedef struct Mamuna_Window Mamuna_Window;
@@ -441,10 +552,12 @@ void Mamuna_Quit(); //Library Deinitialization
 
 void Mamuna_SetCreationHint(MAMUNA_ENUM hint, int value);
 
-Mamuna_Window* Mamuna_CreateWindow(const char* title, bool fullscreen); 
+Mamuna_Window* Mamuna_CreateWindow(const char* title); 
 void Mamuna_DestroyWindow(Mamuna_Window* window);
 
 MAMUNA_ENUM Mamuna_MoveWindow(Mamuna_Window* window, int x, int y);
+MAMUNA_ENUM Mamuna_ResizeWindow(Mamuna_Window* window, int w, int h);
+MAMUNA_ENUM Mamuna_SetWindowMode(Mamuna_Window* window, MAMUNA_ENUM mode);
 MAMUNA_ENUM Mamuna_RenameWindow(Mamuna_Window* window, const char* name);
 
 void Mamuna_WindowGetSize(Mamuna_Window* window, int* width, int* height);
@@ -465,11 +578,15 @@ GLADapiproc Mamuna_GetProcAddress(const char* name);
 
 void Mamuna_SetSwapInterval(Mamuna_Window* window, int mode);
 
+uint32_t Mamuna_GetCharacterInput();
+Mamuna_Button Mamuna_GetGlobalMouseState(int* x, int* y, int* Vscroll);
+Mamuna_Button Mamuna_GetMouseState(Mamuna_Window* window, int* x, int* y, int* Vscroll);
+
 void Mamuna_EnableDebugOutput(Mamuna_Renderer* renderer);
 void Mamuna_DisableDebugOutput(Mamuna_Renderer* renderer);
 Mamuna_Renderer* Mamuna_CreateRenderer(Mamuna_Window* window); //Create a renderer opengl
 void Mamuna_DestroyRenderer(Mamuna_Renderer* renderer); //Destroy a renderer
-void Mamuna_RendererChangeWindow(Mamuna_Renderer* renderer, Mamuna_Window* window);
+void Mamuna_RendererChangeWindow(Mamuna_Renderer* renderer, Mamuna_Window* window, int samples);
 
 void Mamuna_FlushRenderer(Mamuna_Renderer* renderer); //This renders everything that has been sent to the graphics card
 void Mamuna_SetRenderTargets(Mamuna_Renderer* renderer, size_t amount, Mamuna_Texture** textures); //This sets a renderTarget to Textures,
@@ -552,6 +669,9 @@ void Mamuna_Scissor(Mamuna_Renderer* renderer, int x, int y, size_t width, size_
 void Mamuna_StencilFunc(Mamuna_Renderer* renderer, MAMUNA_ENUM func, int ref, uint32_t mask);
 void Mamuna_StencilOp(Mamuna_Renderer* renderer, MAMUNA_ENUM sFail, MAMUNA_ENUM dpFail, MAMUNA_ENUM dpPass);
 void Mamuna_PolygonMode(Mamuna_Renderer* renderer, MAMUNA_ENUM mode);
+
+void Mamuna_SetViewport(Mamuna_Renderer* renderer, int x, int y, int w, int h);
+void Mamuna_SetNewWindowSize(Mamuna_Renderer* renderer, int w, int h, int samples);
 
 void Mamuna_DispatchCompute(Mamuna_Renderer* renderer, uint32_t num_Gr_x, uint32_t num_Gr_y, uint32_t num_Gr_z);
 
