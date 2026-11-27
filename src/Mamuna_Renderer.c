@@ -55,6 +55,7 @@ typedef struct Mamuna_Renderer {
 	size_t countRIBO;
 	size_t capacityRIBO;
 	size_t currentW, currentH;
+	size_t currentX, currentY;
 	int winW, winH;
 	size_t texturesCount;
 	GLsync fence;
@@ -655,6 +656,8 @@ Mamuna_Renderer* Mamuna_CreateRenderer(Mamuna_Window* window){
 	Mamuna_WindowGetSize(window, &w, &h);
 	renderer->winW = w;
 	renderer->winH = h;
+	renderer->currentX = 0;
+	renderer->currentY = 0;
 	glViewport(0,0,w,h);
 
 	int samples;
@@ -720,7 +723,7 @@ void Mamuna_DestroyRenderer(Mamuna_Renderer* renderer){
 	renderer = NULL;
 }
 
-void Mamuna_RendererChangeWindow(Mamuna_Renderer* renderer, Mamuna_Window* window){
+void Mamuna_RendererChangeWindow(Mamuna_Renderer* renderer, Mamuna_Window* window, int samples){
 	if(!renderer || !window) return;
 	if(Mamuna_MakeCurrent(window, renderer->context) != MAMUNA_SUCCESS){
 		Mamuna_DestroyContext(renderer->context);
@@ -732,8 +735,30 @@ void Mamuna_RendererChangeWindow(Mamuna_Renderer* renderer, Mamuna_Window* windo
 	Mamuna_WindowGetSize(window, &w, &h);
 	renderer->winW = w;
 	renderer->winH = h;
+	renderer->currentX = 0;
+	renderer->currentY = 0;
 	renderer->currentW = w;
 	renderer->currentH = h;
+
+	glDeleteTextures(1, &renderer->windowTexture);
+
+	if(samples > 1){
+		glCreateTextures(GL_TEXTURE_2D_MULTISAMPLE, 1, &renderer->windowTexture);
+		glTextureStorage2DMultisample(renderer->windowTexture, samples, GL_RGBA8, w, h, GL_TRUE);
+		glNamedRenderbufferStorageMultisample(renderer->RB, samples, GL_DEPTH24_STENCIL8, w, h);
+
+	} else {
+		glCreateTextures(GL_TEXTURE_2D, 1, &renderer->windowTexture);
+		glTextureStorage2D(renderer->windowTexture, 1, GL_RGBA8, w, h);
+		glNamedRenderbufferStorage(renderer->RB, GL_DEPTH24_STENCIL8, w, h);
+	}
+
+	glNamedFramebufferTexture(renderer->FBO, GL_COLOR_ATTACHMENT0, renderer->windowTexture, 0);
+	glNamedFramebufferRenderbuffer(renderer->FBO, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, renderer->RB);
+
+	GLenum drawBuffers[] = { GL_COLOR_ATTACHMENT0 };
+	glNamedFramebufferDrawBuffers(renderer->FBO, 1, drawBuffers);
+
 	glViewport(0,0,w,h);
 }
 
@@ -801,7 +826,7 @@ void Mamuna_FlushRenderer(Mamuna_Renderer* renderer){
 	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, renderer->RIBO);
 	glBindFramebuffer(GL_FRAMEBUFFER, renderer->FBO);
 
-	glViewport(0,0, renderer->currentW, renderer->currentH);
+	glViewport(renderer->currentX, renderer->currentY, renderer->currentW, renderer->currentH);
 	
 	glMultiDrawElementsIndirect(renderer->mode, type, 0, renderer->countRIBO, sizeof(DRAWCOMMAND));	
 	
@@ -856,6 +881,7 @@ void Mamuna_ClearRenderer(Mamuna_Renderer* renderer, uint8_t r, uint8_t g, uint8
 	Mamuna_SyncGPU(renderer);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, renderer->FBO);
+	glViewport(renderer->currentX, renderer->currentY, renderer->currentW, renderer->currentH);
 
 	glClearColor((float)r / 255.f, (float)g / 255.f, (float)b / 255.f, (float)a / 255.f);
 
@@ -869,12 +895,9 @@ void Mamuna_RenderPresent(Mamuna_Renderer* renderer, Mamuna_Window* window){
 
 	Mamuna_SyncGPU(renderer);
 
-	
-
-
 	glBlitNamedFramebuffer(renderer->FBO, 0,
 			0, 0,
-			renderer->currentW, renderer->currentH,
+			renderer->winW, renderer->winH,
 			0, 0,
 			renderer->winW, renderer->winH,
 			GL_COLOR_BUFFER_BIT,
@@ -1686,4 +1709,50 @@ void Mamuna_PolygonMode(Mamuna_Renderer* renderer, MAMUNA_ENUM mode){
 	GLenum glMode = Mamuna_GetGLEnum(mode);
 
 	glPolygonMode(GL_FRONT_AND_BACK, glMode);
+}
+
+void Mamuna_SetViewport(Mamuna_Renderer* renderer, int x, int y, int w, int h){
+	if(!renderer) return;
+
+	renderer->currentX = x;
+	renderer->currentY = y;
+	renderer->currentW = w;
+	renderer->currentH = h;
+
+	glViewport(x, y, w, h);
+}
+
+void Mamuna_SetNewWindowSize(Mamuna_Renderer* renderer, int w, int h, int samples){
+	if(!renderer) return;
+
+	renderer->winW = w;
+	renderer->winH = h;
+	renderer->currentW = w;
+	renderer->currentH = h;
+
+	glDeleteTextures(1, &renderer->windowTexture);
+
+	if(samples > 1){
+		glCreateTextures(GL_TEXTURE_2D_MULTISAMPLE, 1, &renderer->windowTexture);
+		glTextureStorage2DMultisample(renderer->windowTexture, samples, GL_RGBA8, w, h, GL_TRUE);
+		glNamedRenderbufferStorageMultisample(renderer->RB, samples, GL_DEPTH24_STENCIL8, w, h);
+
+	} else {
+		glCreateTextures(GL_TEXTURE_2D, 1, &renderer->windowTexture);
+		glTextureStorage2D(renderer->windowTexture, 1, GL_RGBA8, w, h);
+		glNamedRenderbufferStorage(renderer->RB, GL_DEPTH24_STENCIL8, w, h);
+	}
+
+	glNamedFramebufferTexture(renderer->FBO, GL_COLOR_ATTACHMENT0, renderer->windowTexture, 0);
+	glNamedFramebufferRenderbuffer(renderer->FBO, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, renderer->RB);
+
+	GLenum drawBuffers[] = { GL_COLOR_ATTACHMENT0 };
+	glNamedFramebufferDrawBuffers(renderer->FBO, 1, drawBuffers);
+
+	GLenum status = glCheckNamedFramebufferStatus(renderer->FBO, GL_FRAMEBUFFER);
+	if(status != GL_FRAMEBUFFER_COMPLETE){
+		printf("%x\n", status);
+	}
+
+	glViewport(0, 0, w, h);
 }

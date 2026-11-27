@@ -1,18 +1,24 @@
 #include <Mamuna.h>
 #include <stdio.h>
 #include <time.h>
+#include <uchar.h>
 
 typedef struct Mamuna_Window {
 	size_t index;
 } Mamuna_Window;
 
-Mamuna_Hashmap_Int* windows = NULL;
+static Mamuna_Hashmap_Int* windows = NULL;
 
-size_t openWindows = 0;
-size_t createdWindows = 0;
+static size_t openWindows = 0;
+static size_t createdWindows = 0;
 
-bool globKeys[MAMUNA_KEY_LAST] = {0};
-int gloState = 0;
+static bool globKeys[256] = {0};
+static int gloState = 0;
+static Mamuna_Button butt = 0;
+static int offsetScroll = 0;
+static int xR, yR;
+
+static uint32_t character = 0;
 
 #if defined(_WIN32)
 #include <windows.h>
@@ -97,6 +103,7 @@ typedef HGLRC (WINAPI * PFNWGLCREATECONTEXTATTRIBSARBPROC) (HDC hDC, HGLRC hShar
 typedef BOOL (WINAPI * PFNWGLDELETECONTEXTPROC) (HGLRC oldContext);
 typedef BOOL (WINAPI * PFNWGLCHOOSEPIXELFORMATARBPROC) (HDC hdc, const int *piAttribIList, const FLOAT *pfAttribFList, UINT nMaxFormats, int *piFormats, UINT *nNumFormats);
 typedef BOOL (WINAPI * PFNWGLMAKECURRENTPROC) (HDC hDc, HGLRC newContext);
+typedef BOOL (WINAPI * PFNWGLSWAPINTERVALEXTPROC) (int interval);
 
 
 
@@ -108,26 +115,30 @@ typedef struct Mamuna_Context {
 
 typedef struct WindowNode {
 	HWND win;
+	int x,y;
+
+	bool keys[256];
 	bool shouldClose;
 	bool isActive;
 } WindowNode;
 
-PFNWGLCREATECONTEXTPROC p_wglCreateContext = NULL;
-PFNWGLDELETECONTEXTPROC p_wglDeleteContext = NULL;
-PFNWGLCREATECONTEXTATTRIBSARBPROC p_wglCreateContextAttribsARB = NULL;
-PFNWGLGETPROCADDRESSPROC p_wglGetProcAddress = NULL;
-PFNWGLCHOOSEPIXELFORMATARBPROC p_wglChoosePixelFormatARB = NULL;
-PFNWGLMAKECURRENTPROC p_wglMakeCurrent = NULL;
+static PFNWGLCREATECONTEXTPROC p_wglCreateContext = NULL;
+static PFNWGLDELETECONTEXTPROC p_wglDeleteContext = NULL;
+static PFNWGLCREATECONTEXTATTRIBSARBPROC p_wglCreateContextAttribsARB = NULL;
+static PFNWGLGETPROCADDRESSPROC p_wglGetProcAddress = NULL;
+static PFNWGLCHOOSEPIXELFORMATARBPROC p_wglChoosePixelFormatARB = NULL;
+static PFNWGLMAKECURRENTPROC p_wglMakeCurrent = NULL;
+static PFNWGLSWAPINTERVALEXTPROC p_wglSwapIntervalEXT = NULL;
 
-bool init = false;
+static bool init = false;
 
-WNDCLASSEXA class = {0};
-ATOM Aclass = 0;
-RECT sizeHints = {0};
-HMODULE dynWGL = NULL;
+static WNDCLASSEXA class = {0};
+static ATOM Aclass = 0;
+static RECT sizeHints = {0};
+static HMODULE dynWGL = NULL;
 
 
-int winCreationHints[] = {
+static int winCreationHints[] = {
 	WGL_DRAW_TO_WINDOW_ARB, GL_TRUE,
 	WGL_SUPPORT_OPENGL_ARB, GL_TRUE,
 	WGL_DOUBLE_BUFFER_ARB, GL_TRUE,
@@ -155,7 +166,7 @@ int winCreationHints[] = {
 	0,
 };
 
-PIXELFORMATDESCRIPTOR pfd = {
+static PIXELFORMATDESCRIPTOR pfd = {
 	sizeof(PIXELFORMATDESCRIPTOR),
 	1,
 	PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | 
@@ -170,7 +181,7 @@ PIXELFORMATDESCRIPTOR pfd = {
 };
 
 
-int contextCreationHints[] = {
+static int contextCreationHints[] = {
 	WGL_CONTEXT_MAJOR_VERSION_ARB, 4,
 	WGL_CONTEXT_MINOR_VERSION_ARB, 6,
 	WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
@@ -198,6 +209,102 @@ LRESULT WINAPI WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam){
 
 				node->isActive = !LOWORD(wparam) ? true : false;
 
+				return 0;
+			}
+		case WM_KEYDOWN:
+			{
+				globKeys[wparam] = true;
+				WindowNode* node = Mamuna_HashmapIntGetElement(windows, (size_t)hwnd);
+				if(node){
+					node->keys[wparam] = true;	
+				}
+				return 0;
+			}
+		case WM_KEYUP:
+			{
+				globKeys[wparam] = false;
+				
+				WindowNode* node = Mamuna_HashmapIntGetElement(windows, (size_t)hwnd);
+				if(node){
+					node->keys[wparam] = true;
+
+				}
+				return 0;
+			}
+		case WM_CHAR:
+			{
+				character = wparam;
+				return 0;
+			}
+		case WM_LBUTTONDOWN:
+			{
+				butt |= MAMUNA_LEFT_BUTTON;
+				return 0;
+			}
+		case WM_LBUTTONUP:
+			{
+				butt &= ~MAMUNA_LEFT_BUTTON;
+				return 0;
+			}
+		case WM_MBUTTONDOWN:
+			{
+				butt |= MAMUNA_MIDDLE_BUTTON;
+				return 0;
+			}
+		case WM_MBUTTONUP:
+			{
+				butt &= ~MAMUNA_MIDDLE_BUTTON;
+				return 0;
+			}
+		case WM_RBUTTONDOWN:
+			{
+				butt |= MAMUNA_RIGHT_BUTTON;
+				return 0;
+			}
+		case WM_RBUTTONUP:
+			{
+				butt &= ~MAMUNA_RIGHT_BUTTON;
+				return 0;
+			}
+		case WM_XBUTTONDOWN:
+			{
+				switch(HIWORD(wparam)){
+					case 0x0001:
+						butt |= MAMUNA_XBUTTON_1;
+						return 0;
+					case 0x0002:
+						butt |= MAMUNA_XBUTTON_2;
+						return 0;
+				}
+			}
+		case WM_XBUTTONUP:
+			{
+				switch(HIWORD(wparam)){
+					case 0x0001:
+						butt &= ~MAMUNA_XBUTTON_1;
+						return 0;
+					case 0x0002:
+						butt &= ~MAMUNA_XBUTTON_2;
+						return 0;
+				}
+			}
+		case WM_MOUSEMOVE:
+			{
+				POINT p;
+				GetCursorPos(&p);
+				xR = p.x;
+				yR = p.y;
+				WindowNode* node = Mamuna_HashmapIntGetElement(windows, (size_t)hwnd);
+				if(node){
+					node->x = LOWORD(lparam);
+					node->y = HIWORD(lparam);
+				}
+				return 0;
+			}
+		case WM_MOUSEWHEEL:
+			{
+				int delta = GET_WHEEL_DELTA_WPARAM(wparam);
+				offsetScroll = delta > 0 ? 1 : delta < 0 ? -1 : 0;
 				return 0;
 			}
 		default:
@@ -278,7 +385,7 @@ bool Mamuna_Init(){
 	class.lpfnWndProc = WndProc;
 	class.hInstance = GetModuleHandle(NULL);
 	class.hIcon = NULL;
-	class.hCursor = NULL;
+	class.hCursor = LoadCursorA(NULL, IDC_ARROW);
 	class.hbrBackground = CreateSolidBrush(RGB(0,0,0));
 	class.lpszMenuName = NULL;
 	class.lpszClassName = "Mamuna";
@@ -286,25 +393,25 @@ bool Mamuna_Init(){
 
 	p_wglGetProcAddress = (PFNWGLGETPROCADDRESSPROC)GetProcAddress(dynWGL, "wglGetProcAddress");
 	if(!p_wglGetProcAddress){
-		printf("wglGetProcAddress\n");
+		printf("Failed to load wglGetProcAddress\n");
 		return false;
 	}
 
 	p_wglCreateContext = (PFNWGLCREATECONTEXTPROC)GetProcAddress(dynWGL, "wglCreateContext");
 	if(!p_wglCreateContext){
-		printf("wglCreateContext");
+		printf("Failed to wglCreateContext\n");
 		return false;
 	}
 
 	p_wglDeleteContext = (PFNWGLDELETECONTEXTPROC)GetProcAddress(dynWGL, "wglDeleteContext");
 	if(!p_wglDeleteContext){
-		printf("wglDeleteContext\n");
+		printf("Failed to wglDeleteContext\n");
 		return false;
 	}
 
 	p_wglMakeCurrent = (PFNWGLMAKECURRENTPROC)GetProcAddress(dynWGL, "wglMakeCurrent");
 	if(!p_wglMakeCurrent){
-		printf("wglMakeCurrent\n");
+		printf("Failed to wglMakeCurrent\n");
 		return false;
 	}
 
@@ -319,6 +426,7 @@ bool Mamuna_Init(){
 	if(!tmp){
 		init = true;
 		Mamuna_Quit();
+		printf("tmp\n");
 		return false;
 
 	}
@@ -329,6 +437,7 @@ bool Mamuna_Init(){
 		init = true;
 		DestroyWindow(tmp);
 		Mamuna_Quit();
+		printf("Failed to choose pixel\n");
 		return false;
 
 	}
@@ -338,6 +447,7 @@ bool Mamuna_Init(){
 		init = true;
 		DestroyWindow(tmp);
 		Mamuna_Quit();
+		printf("Failed to makecurrent\n");
 		return false;
 	}
 
@@ -347,6 +457,7 @@ bool Mamuna_Init(){
 		init = true;
 		DestroyWindow(tmp);
 		Mamuna_Quit();
+		printf("Failed to wglCreateContextAttribsARB\n");
 		return false;
 	}
 
@@ -357,7 +468,16 @@ bool Mamuna_Init(){
 		DestroyWindow(tmp);
 
 		Mamuna_Quit();
+		printf("Failed to load wglChoosePixelFormatARB\n");
+		return false;
+	}
 
+	p_wglSwapIntervalEXT = (PFNWGLSWAPINTERVALEXTPROC)p_wglGetProcAddress("wglSwapIntervalEXT");
+	if(!p_wglSwapIntervalEXT){
+		init = true;
+		DestroyWindow(tmp);
+		Mamuna_Quit();
+		printf("Failed to load wglSwapIntervalEXT\n");
 		return false;
 	}
 
@@ -389,17 +509,15 @@ void Mamuna_Quit(){
 
 }
 
-Mamuna_Window* Mamuna_CreateWindow(const char* title, bool fullscreen){
+Mamuna_Window* Mamuna_CreateWindow(const char* title){
 	if(!init || !title) return NULL;
 
 	DWORD styleEX = WS_EX_APPWINDOW;
 	DWORD style = 0;
-	if(fullscreen){
-		style = WS_POPUP | WS_VISIBLE;
-	} else{
-		style = WS_CAPTION | WS_VISIBLE;
-	}
-	
+	style = WS_CAPTION | WS_VISIBLE;
+
+
+
 	HWND win = CreateWindowExA(styleEX, "Mamuna", title, style, sizeHints.left, sizeHints.top,
 			sizeHints.right, sizeHints.bottom, NULL, NULL, GetModuleHandle(NULL), NULL);
 	if(!win) return NULL;
@@ -457,6 +575,45 @@ MAMUNA_ENUM Mamuna_MoveWindow(Mamuna_Window* window, int x, int y){
 	return MAMUNA_SUCCESS;
 }
 
+MAMUNA_ENUM Mamuna_ResizeWindow(Mamuna_Window* window, int w, int h){
+	if(!init || !window) return MAMUNA_ERROR;
+
+	WindowNode* node = Mamuna_HashmapIntGetElement(windows, window->index);
+	if(!node) return MAMUNA_IS_NOT_EXIST;
+
+	if(!SetWindowPos(node->win, NULL, 0, 0, w, h, SWP_NOMOVE | SWP_NOZORDER)){
+		return MAMUNA_ERROR;
+	}
+
+	return MAMUNA_SUCCESS;
+
+}
+
+MAMUNA_ENUM Mamuna_SetWindowMode(Mamuna_Window* window, MAMUNA_ENUM mode){
+	if(!init || !window) return MAMUNA_ERROR;
+
+	WindowNode* node = Mamuna_HashmapIntGetElement(windows, window->index);
+	if(!node) return MAMUNA_IS_NOT_EXIST;
+	switch(mode){
+		case MAMUNA_WINDOW_MODE_BORDERLESS:
+		{
+			long style = GetWindowLongA(node->win, GWL_STYLE);
+			style &= ~WS_CAPTION;
+			style |= WS_POPUP;
+			SetWindowLongA(node->win, GWL_STYLE, style);
+		} break;
+		case MAMUNA_WINDOW_MODE_WINDOWED:
+		{
+			long style = GetWindowLongA(node->win, GWL_STYLE);
+			style &= ~WS_POPUP;
+			style |= WS_CAPTION;
+			SetWindowLongA(node->win, GWL_STYLE, style);
+		} break;
+	}
+
+	return MAMUNA_SUCCESS;
+}
+
 MAMUNA_ENUM Mamuna_RenameWindow(Mamuna_Window* window, const char* name){
 	if(!init || !window || !name) return MAMUNA_ERROR;
 
@@ -485,7 +642,7 @@ void Mamuna_WindowGetSize(Mamuna_Window* window, int* width, int* height){
 
 void Mamuna_PollEvents(){
 	if(!init) return;
-
+	offsetScroll = 0;
 	MSG msg;
 	while(PeekMessageA(&msg, NULL, 0, 0, PM_REMOVE)){
 		TranslateMessage(&msg);
@@ -589,12 +746,40 @@ GLADapiproc Mamuna_GetProcAddress(const char* name){
 	return proc;
 }
 
+void Mamuna_SetSwapInterval(Mamuna_Window* window, int mode){
+	if(!init || !window) return;
+
+	p_wglSwapIntervalEXT(mode);
+}
+
+uint32_t Mamuna_GetCharacterInput(){
+	return character;
+}
+
+Mamuna_Button Mamuna_GetMouseState(Mamuna_Window* window, int* x, int* y, int* Vscroll){
+	if(!window || !init || !windows) return butt;
+	WindowNode* node = Mamuna_HashmapIntGetElement(windows, window->index);
+	if(!node) return butt;
+
+	if(x) *x = node->x;
+	if(y) *y = node->y;
+	if(Vscroll) *Vscroll = offsetScroll;
+	return butt;
+}
+
+Mamuna_Button Mamuna_GetGlobalMouseState(int* x, int* y, int* Vscroll){
+	if(x) *x = xR;
+	if(y) *y = yR;
+	if(Vscroll) *Vscroll = offsetScroll;
+	return butt;
+}
 
 #elif defined(__linux__)
 
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <dlfcn.h>
+#include <locale.h>
 
 #define GLX_USE_GL		1
 #define GLX_BUFFER_SIZE		2
@@ -748,6 +933,7 @@ typedef struct WindowNode {
 	Window win;
 	GLXWindow glWin;
 	GLXFBConfig fbConf;
+	int x, y;
 } WindowNode;
 
 
@@ -780,7 +966,7 @@ static int winCreationHints[] = {
 	None,
 };
 
-int contextCreationHint[] = {
+static int contextCreationHint[] = {
 	GLX_CONTEXT_MAJOR_VERSION_ARB, 4,
 	GLX_CONTEXT_MINOR_VERSION_ARB, 6,
 	GLX_CONTEXT_FLAGS_ARB, 0, //GLX_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB,
@@ -788,28 +974,26 @@ int contextCreationHint[] = {
 	None,
 };
 
-XSizeHints hints = {0};
+static XSizeHints hints = {0};
+
+static XIM xim = 0;
+static XIC xic = 0;
+static Display* disp = NULL;
+static Atom atom = 0;
+static void* dynGLX = NULL;
 
 
-GLXContext glCon;
-
-
-Display* disp = NULL;
-Atom atom = 0;
-void* dynGLX = NULL;
-
-
-glXCreateContextAttribsARBProc glXCreateContextAttribsARB = NULL;
-PFNGLXGETPROCADDRESSPROC glXGetProcAddress = NULL;
-PFNGLXCHOOSEFBCONFIGPROC glXChooseFBConfig = NULL;
-PFNGLXGETVISUALFROMFBCONFIGPROC glXGetVisualFromFBConfig = NULL;
-PFNGLXSWAPINTERVALEXTPROC glXSwapIntervalEXT = NULL;
-PFNGLXCREATEWINDOWPROC glXCreateWindow = NULL;
-PFNGLXDESTROYWINDOWPROC glXDestroyWindow = NULL;
-glXSwapBuffersProc glXSwapBuffers = NULL;
-glXDestroyContextProc glXDestroyContext = NULL;
-glXMakeCurrentProc glXMakeCurrent = NULL;
-glXQueryVersionProc glXQueryVersion = NULL;
+static glXCreateContextAttribsARBProc glXCreateContextAttribsARB = NULL;
+static PFNGLXGETPROCADDRESSPROC glXGetProcAddress = NULL;
+static PFNGLXCHOOSEFBCONFIGPROC glXChooseFBConfig = NULL;
+static PFNGLXGETVISUALFROMFBCONFIGPROC glXGetVisualFromFBConfig = NULL;
+static PFNGLXSWAPINTERVALEXTPROC glXSwapIntervalEXT = NULL;
+static PFNGLXCREATEWINDOWPROC glXCreateWindow = NULL;
+static PFNGLXDESTROYWINDOWPROC glXDestroyWindow = NULL;
+static glXSwapBuffersProc glXSwapBuffers = NULL;
+static glXDestroyContextProc glXDestroyContext = NULL;
+static glXMakeCurrentProc glXMakeCurrent = NULL;
+static glXQueryVersionProc glXQueryVersion = NULL;
 
 bool Mamuna_Init(){
 	disp = XOpenDisplay(NULL);
@@ -865,6 +1049,39 @@ bool Mamuna_Init(){
 		return false;
 	}
 
+	if(!setlocale(LC_ALL, "")){
+		XCloseDisplay(disp);
+		disp = NULL;
+		return false;
+	}
+
+	if(!XSupportsLocale()){
+		XCloseDisplay(disp);
+		disp = NULL;
+		return false;
+	}
+
+	if(!XSetLocaleModifiers("")){
+		XCloseDisplay(disp);
+		disp = NULL;
+		return false;
+	}
+
+	xim = XOpenIM(disp, NULL, NULL, NULL);
+	if(!xim){
+		XCloseDisplay(disp);
+		disp = NULL;
+		return false;
+	}
+
+	xic = XCreateIC(xim, XNInputStyle, XIMPreeditNothing | XIMStatusNothing, NULL);
+	if(!xic){
+		XCloseIM(xim);
+		XCloseDisplay(disp);
+		disp = NULL;
+		return false;
+	}
+
 	windows = Mamuna_CreateHashmapInt(sizeof(WindowNode), 10);
 	atom = XInternAtom(disp, "WM_DELETE_WINDOW", False);
 
@@ -883,7 +1100,8 @@ void Mamuna_Quit(){
 		}
 		free(wins);
 	}
-
+	XDestroyIC(xic);
+	XCloseIM(xim);
 	XCloseDisplay(disp);
 
 	dlclose(dynGLX);
@@ -967,7 +1185,7 @@ void Mamuna_SetCreationHint(MAMUNA_ENUM hint, int value){
 	}
 }
 
-Mamuna_Window* Mamuna_CreateWindow(const char* title, bool fullscreen){
+Mamuna_Window* Mamuna_CreateWindow(const char* title){
 	if(!hints.width || !hints.height || !title || !disp || !windows) return NULL;
 
 	int screenID = XDefaultScreen(disp);
@@ -1023,7 +1241,7 @@ Mamuna_Window* Mamuna_CreateWindow(const char* title, bool fullscreen){
 	Mamuna_Window* window = calloc(1, sizeof(Mamuna_Window));
 	window->index = win;
 
-	
+
 	return window;
 }
 
@@ -1052,9 +1270,43 @@ MAMUNA_ENUM Mamuna_MoveWindow(Mamuna_Window* window, int x, int y){
 	if(!win){
 		return MAMUNA_IS_NOT_EXIST;
 	}
-
+	XSizeHints tmp = {0};
+	tmp.x = x;
+	tmp.y = y;
+	tmp.flags = PPosition;
 	XMoveWindow(disp, win->win, x, y);
+	XSetWMNormalHints(disp, win->win, &tmp);
+	return MAMUNA_SUCCESS;
+}
 
+MAMUNA_ENUM Mamuna_ResizeWindow(Mamuna_Window* window, int w, int h){
+	if(!window || !disp || !windows) return MAMUNA_ERROR;
+
+	WindowNode* win = Mamuna_HashmapIntGetElement(windows, window->index);
+	if(!win){
+		return MAMUNA_IS_NOT_EXIST;
+	}
+
+	XSizeHints tmp = {0};
+	tmp.min_width = w;
+	tmp.max_width = w;
+	tmp.width = w;
+
+	tmp.min_height = h;
+	tmp.max_height = h;
+	tmp.height = h;
+
+	tmp.flags = PSize | PMinSize | PMaxSize;
+	
+	XResizeWindow(disp, win->win, w, h);
+	XSetWMNormalHints(disp, win->win, &tmp);
+
+	
+	return MAMUNA_SUCCESS;
+}
+
+MAMUNA_ENUM Mamuna_SetWindowMode(Mamuna_Window* window, MAMUNA_ENUM mode){
+	printf("not in x11\n");
 	return MAMUNA_SUCCESS;
 }
 
@@ -1073,6 +1325,7 @@ MAMUNA_ENUM Mamuna_RenameWindow(Mamuna_Window* window, const char* name){
 void Mamuna_PollEvents(){
 	if(!disp) return;
 	XEvent ev;
+	offsetScroll = 0;
 
 	while(XPending(disp) > 0){
 		XNextEvent(disp, &ev);
@@ -1091,16 +1344,37 @@ void Mamuna_PollEvents(){
 				size_t count;
 				WindowNode* win = Mamuna_HashmapIntGetElement(windows, ev.xfocus.window);
 				win->winIsActive = true;
+
+				XSetICValues(xic, XNFocusWindow, win->win, NULL);
+				XSetICFocus(xic);
 			} break;
 			case FocusOut:
 			{
 				size_t count;
 				WindowNode* win = Mamuna_HashmapIntGetElement(windows, ev.xfocus.window);
 				win->winIsActive = false;
+				XUnsetICFocus(xic);
+				XSetICValues(xic, XNFocusWindow, NULL, NULL);
 			} break;
 			case KeyPress:
 			{
 				globKeys[ev.xkey.keycode] = true;
+				char buf[5] = {0};
+				KeySym ks = NoSymbol;
+				Status status = 0;
+				int len = Xutf8LookupString(xic, &ev.xkey, buf, 4, &ks, &status);
+				if((status == XLookupChars || status == XLookupBoth) && len > 0){
+					char32_t code = 0;
+					mbstate_t state = {0};
+
+					size_t res = mbrtoc32(&code, buf, len, &state);
+					if(res > 0 && res <= (size_t)len){
+						character = code;
+					} else {
+						character = 0;
+					}
+				} 
+
 				WindowNode* win = Mamuna_HashmapIntGetElement(windows, ev.xkey.window);
 				if(win){
 					win->keys[ev.xkey.keycode] = true;	
@@ -1109,11 +1383,31 @@ void Mamuna_PollEvents(){
 			case KeyRelease:
 			{
 				globKeys[ev.xkey.keycode] = false;
+				character = 0;
 				WindowNode* win = Mamuna_HashmapIntGetElement(windows, ev.xkey.window);
 				if(win){
-					win->keys[ev.xkey.keycode] = false;	
+					win->keys[ev.xkey.keycode] = false;
 				}
 
+			} break;
+			case ButtonPress:
+			{
+				butt |= 1 << (ev.xbutton.button - 1);
+				offsetScroll = ev.xbutton.button == 4 ? 1 : ev.xbutton.button == 5 ? -1 : 0;
+			} break;
+			case ButtonRelease:
+			{
+				butt &= ~(1 << (ev.xbutton.button - 1));
+			} break;
+			case MotionNotify:
+			{
+				xR = ev.xmotion.x_root;
+				yR = ev.xmotion.y_root;
+				WindowNode* node = Mamuna_HashmapIntGetElement(windows, ev.xmotion.window);
+				if(node){
+					node->x = ev.xmotion.x;
+					node->y = ev.xmotion.y;
+				}
 			} break;
 		}  	
 	}
@@ -1127,7 +1421,7 @@ void Mamuna_WindowSwapBuffers(Mamuna_Window* window){
 	WindowNode* node = Mamuna_HashmapIntGetElement(windows, window->index);
 	if(!node) return;
 	
-
+	//glFinish();
 	glXSwapBuffers(disp, node->glWin);
 	XFlush(disp);
 	glFinish();
@@ -1187,8 +1481,6 @@ Mamuna_Context* Mamuna_CreateContext(Mamuna_Window* window){
 	Mamuna_Context* con = calloc(1, sizeof(Mamuna_Context));
 	con->glCon = glXCreateContextAttribsARB(disp, win->fbConf, 0, True, contextCreationHint);
 
-	//
-
 	return con;
 }
 
@@ -1241,6 +1533,27 @@ void Mamuna_SetSwapInterval(Mamuna_Window* window, int mode){
 
 	glXSwapIntervalEXT(disp, node->glWin, mode);
 
+}
+
+uint32_t Mamuna_GetCharacterInput(){
+	return character;
+}
+
+Mamuna_Button Mamuna_GetGlobalMouseState(int* x, int* y, int* Vscroll){
+	if(x) *x = xR;
+	if(y) *y = yR;
+	if(Vscroll) *Vscroll = offsetScroll;
+	return butt;
+}
+
+Mamuna_Button Mamuna_GetMouseState(Mamuna_Window* window, int* x, int* y, int* Vscroll){
+	if(!window || !windows || !disp) return butt;
+	WindowNode* node = Mamuna_HashmapIntGetElement(windows, window->index);
+	if(!node) return butt;
+	if(x) *x = node->x;
+	if(y) *y = node->y;
+	if(Vscroll) *Vscroll = offsetScroll;
+	return butt;
 }
 
 #else 
